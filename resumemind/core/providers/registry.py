@@ -14,6 +14,42 @@ class LLMProviders:
 
     PROVIDERS = {
         ProviderType.GPT: {
+            "gpt-5-mini": ProviderConfig(
+                name="GPT-5 Mini",
+                provider_type=ProviderType.GPT,
+                model="gpt-5-mini",
+                api_key_env="OPENAI_API_KEY",
+            ),
+            "gpt-5": ProviderConfig(
+                name="GPT-4.5",
+                provider_type=ProviderType.GPT,
+                model="gpt-4.5",
+                api_key_env="OPENAI_API_KEY",
+            ),
+            "gpt-4.1": ProviderConfig(
+                name="GPT-4.1",
+                provider_type=ProviderType.GPT,
+                model="gpt-4.1",
+                api_key_env="OPENAI_API_KEY",
+            ),
+            "gpt-4.1-mini": ProviderConfig(
+                name="GPT-4.1 Mini",
+                provider_type=ProviderType.GPT,
+                model="gpt-4.1-mini",
+                api_key_env="OPENAI_API_KEY",
+            ),
+            "gpt-4o-mini": ProviderConfig(
+                name="GPT-4o Mini",
+                provider_type=ProviderType.GPT,
+                model="gpt-4o-mini",
+                api_key_env="OPENAI_API_KEY",
+            ),
+            "gpt-4o": ProviderConfig(
+                name="GPT-4o",
+                provider_type=ProviderType.GPT,
+                model="gpt-4o",
+                api_key_env="OPENAI_API_KEY",
+            ),
             "gpt-4": ProviderConfig(
                 name="GPT-4",
                 provider_type=ProviderType.GPT,
@@ -24,12 +60,6 @@ class LLMProviders:
                 name="GPT-4 Turbo",
                 provider_type=ProviderType.GPT,
                 model="gpt-4-turbo",
-                api_key_env="OPENAI_API_KEY",
-            ),
-            "gpt-3.5-turbo": ProviderConfig(
-                name="GPT-3.5 Turbo",
-                provider_type=ProviderType.GPT,
-                model="gpt-3.5-turbo",
                 api_key_env="OPENAI_API_KEY",
             ),
         },
@@ -65,26 +95,6 @@ class LLMProviders:
                 provider_type=ProviderType.CLAUDE,
                 model="claude-3-haiku-20240307",
                 api_key_env="ANTHROPIC_API_KEY",
-            ),
-        },
-        ProviderType.OLLAMA: {
-            "llama2": ProviderConfig(
-                name="Llama 2 (Ollama)",
-                provider_type=ProviderType.OLLAMA,
-                model="ollama/llama2",
-                base_url="http://localhost:11434",
-            ),
-            "codellama": ProviderConfig(
-                name="Code Llama (Ollama)",
-                provider_type=ProviderType.OLLAMA,
-                model="ollama/codellama",
-                base_url="http://localhost:11434",
-            ),
-            "mistral": ProviderConfig(
-                name="Mistral (Ollama)",
-                provider_type=ProviderType.OLLAMA,
-                model="ollama/mistral",
-                base_url="http://localhost:11434",
             ),
         },
     }

@@ -38,8 +38,7 @@ class DisplayManager:
             "1": ("OpenAI GPT", "GPT-4, GPT-3.5 Turbo models"),
             "2": ("Google Gemini", "Gemini Pro, Gemini 1.5 Pro models"),
             "3": ("Anthropic Claude", "Claude 3 Opus, Sonnet, Haiku models"),
-            "4": ("Ollama", "Local models via Ollama"),
-            "5": ("Custom LiteLLM", "Custom model configuration"),
+            "4": ("Custom LiteLLM", "Custom model configuration"),
         }
 
         for option, (provider, description) in provider_info.items():

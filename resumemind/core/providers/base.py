@@ -11,5 +11,4 @@ class ProviderType(Enum):
     GPT = "gpt"
     GEMINI = "gemini"
     CLAUDE = "claude"
-    OLLAMA = "ollama"
     LITELLM = "litellm"

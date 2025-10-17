@@ -4,7 +4,7 @@ AI-powered resume analysis and optimization tool with support for multiple LLM p
 
 ## Features
 
-- **Multiple LLM Providers**: Support for GPT, Gemini, Claude, Ollama, and custom LiteLLM configurations
+- **Multiple LLM Providers**: Support for GPT, Gemini, Claude, and custom LiteLLM configurations
 - **Interactive CLI**: Beautiful terminal interface with provider selection
 - **Secure API Key Input**: Interactive prompts for API keys
 - **LiteLLM Integration**: Unified interface for all providers
@@ -34,7 +34,7 @@ python main.py
 
 This will show you:
 
-1. Available provider types (GPT, Gemini, Claude, Ollama, Custom)
+1. Available provider types (GPT, Gemini, Claude, Custom)
 2. Available models for each provider
 3. Configuration validation
 4. Selected configuration summary
@@ -61,9 +61,9 @@ This will show you:
 
 ### Ollama (Local)
 
-- **Models**: Llama 2, Code Llama, Mistral
+- **Models**: Llama 2, Code Llama, Mistral, other models supported by Ollama
 - **Base URL**: `http://localhost:11434` (default)
-- **LiteLLM Format**: `ollama/llama2`, `ollama/codellama`, `ollama/mistral`
+- **LiteLLM Format**: `ollama/llama2`, `ollama/codellama`, `ollama/mistral`, `ollama/<model_name>`
 
 ### Custom LiteLLM
 

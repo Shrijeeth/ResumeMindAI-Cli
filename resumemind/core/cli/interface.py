@@ -28,8 +28,7 @@ class CLIInterface:
             "1": ProviderType.GPT,
             "2": ProviderType.GEMINI,
             "3": ProviderType.CLAUDE,
-            "4": ProviderType.OLLAMA,
-            "5": ProviderType.LITELLM,
+            "4": ProviderType.LITELLM,  # LiteLLM - unified LLM interface library
         }
 
         return provider_type_map[choice]
