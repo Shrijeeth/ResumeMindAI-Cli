@@ -11,6 +11,7 @@ install:
 	python -m pip install -r requirements.txt
 
 run:
+	docker compose up --build -d
 	python main.py
 
 clean:

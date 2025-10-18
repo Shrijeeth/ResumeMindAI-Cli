@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  falkordb:
+    image: falkordb/falkordb:latest-alpine
+    container_name: falkordb-instance
+    ports:
+      - "6389:6379" # Default FalkorDB port
+    restart: always
+    volumes:
+      # Optional: Persist data outside the container
+      - ./falkordb_data:/data
