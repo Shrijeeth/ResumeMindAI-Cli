@@ -21,6 +21,7 @@ class LLMProviders:
             provider_type=ProviderType.LITELLM,
             model=model,
             base_url=base_url if base_url else None,
+            api_key_env=api_key if api_key else None,
         )
 
         litellm_config = {"model": model}

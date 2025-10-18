@@ -126,7 +126,8 @@ class CommandHandler:
 
             self.display.print("[dim]🪄 Cleaning up your resume...[/dim]")
             self.processed_resume_content = await process_resume_content(
-                self.current_resume_content
+                self.current_resume_content,
+                self.selected_provider,
             )
 
             self.display.print("[dim]🧠 Analyzing content with AI...[/dim]")
