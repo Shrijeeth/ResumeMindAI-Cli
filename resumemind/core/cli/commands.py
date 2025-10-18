@@ -5,6 +5,11 @@ Command handlers for the CLI application
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from resumemind.core.services.resume_ingestion_service import (
+    process_resume_content,
+    read_resume,
+)
+
 from ..providers import ProviderConfig
 from ..utils import DisplayManager
 from .interface import CLIInterface
@@ -106,57 +111,36 @@ class CommandHandler:
 
     async def run_resume_ingestion(self):
         """Main resume analysis functionality"""
-        if not self.current_resume_path or not self.analysis_options:
+        if not self.current_resume_path:
             self.display.print("[red]Missing resume file or analysis options.[/red]")
             return
 
-        self.display.print(
-            "\n[bold yellow]🔄 Starting Resume Analysis...[/bold yellow]"
-        )
+        self.display.print("\n[bold yellow]🔄 Ingesting Your Resume...[/bold yellow]")
 
         try:
             # Simulate analysis steps
             import asyncio
 
             self.display.print("[dim]📖 Reading resume file...[/dim]")
-            await asyncio.sleep(1)
+            self.current_resume_content = await read_resume(self.current_resume_path)
+
+            self.display.print("[dim]🪄 Cleaning up your resume...[/dim]")
+            self.processed_resume_content = await process_resume_content(
+                self.current_resume_content
+            )
 
             self.display.print("[dim]🧠 Analyzing content with AI...[/dim]")
             await asyncio.sleep(2)
 
-            self.display.print("[dim]📊 Generating insights...[/dim]")
+            self.display.print("[dim]📊 Ingesting content to GraphDB...[/dim]")
             await asyncio.sleep(1)
 
-            # Show results placeholder
-            self.display.print("\n[bold green]✅ Analysis Complete![/bold green]")
-            self.display.print("\n[bold cyan]📋 Resume Analysis Results[/bold cyan]")
-
-            # Mock results based on selected options
+            # Show results
             self.display.print(
-                f"\n[bold]Analysis Type:[/bold] {self.analysis_options['analysis_depth']}"
-            )
-
-            for area in self.analysis_options["focus_areas"]:
-                self.display.print(f"\n[bold yellow]{area}:[/bold yellow]")
-                self.display.print("[dim]• Analysis results would appear here[/dim]")
-                self.display.print("[dim]• Recommendations and improvements[/dim]")
-                self.display.print("[dim]• Specific actionable feedback[/dim]")
-
-            if "target_role" in self.analysis_options:
-                self.display.print(
-                    f"\n[bold yellow]Role-Specific Feedback for '{self.analysis_options['target_role']}':[/bold yellow]"
-                )
-                self.display.print(
-                    "[dim]• Tailored recommendations for this role[/dim]"
-                )
-                self.display.print("[dim]• Missing keywords and skills[/dim]")
-                self.display.print("[dim]• Industry-specific suggestions[/dim]")
-
-            self.display.print(
-                "\n[green]💡 This is a preview. Full AI analysis will be implemented with the selected LLM provider.[/green]"
+                "\n[bold green]✅ Resume Ingestion Complete![/bold green]"
             )
 
         except Exception as e:
-            self.display.print(f"\n[red]Analysis failed: {str(e)}[/red]")
+            self.display.print(f"\n[red]Ingestion failed: {str(e)}[/red]")
 
         input("\nPress Enter to return to main menu...")

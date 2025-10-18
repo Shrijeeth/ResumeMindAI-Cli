@@ -1,4 +1,5 @@
 agno==2.1.8
 falkordb==1.2.0
 litellm==1.78.3
+markitdown[pdf,docx]==0.1.3
 rich==13.7.1
