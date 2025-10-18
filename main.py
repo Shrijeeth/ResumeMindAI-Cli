@@ -22,12 +22,11 @@ class ResumeMindApp:
         # Display welcome message
         self.display.show_welcome()
 
-        # Provider selection flow
-        provider_type = self.cli.select_provider_type()
-        config, litellm_config = self.cli.select_model(provider_type)
+        # Model selection flow (simplified - no provider type selection needed)
+        config, litellm_config = self.cli.select_model()
 
         if not config:
-            self.display.print("[red]No provider selected. Exiting.[/red]")
+            self.display.print("[red]No model selected. Exiting.[/red]")
             return
 
         # Set configuration
