@@ -48,12 +48,41 @@ class ProviderStateService:
                     api_key_env TEXT,
                     base_url TEXT,
                     additional_params TEXT,
+                    embedding_model TEXT,
+                    embedding_api_key_env TEXT,
+                    embedding_base_url TEXT,
+                    embedding_additional_params TEXT,
                     is_active BOOLEAN DEFAULT FALSE,
                     is_default BOOLEAN DEFAULT FALSE,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
             """)
+
+            # Add embedding columns to existing tables (migration)
+            try:
+                conn.execute("ALTER TABLE providers ADD COLUMN embedding_model TEXT")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
+            try:
+                conn.execute(
+                    "ALTER TABLE providers ADD COLUMN embedding_api_key_env TEXT"
+                )
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
+            try:
+                conn.execute("ALTER TABLE providers ADD COLUMN embedding_base_url TEXT")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
+            try:
+                conn.execute(
+                    "ALTER TABLE providers ADD COLUMN embedding_additional_params TEXT"
+                )
+            except sqlite3.OperationalError:
+                pass  # Column already exists
 
             # Create index for faster lookups
             conn.execute(
@@ -105,7 +134,9 @@ class ProviderStateService:
                     """
                     UPDATE providers SET 
                         provider_type = ?, model = ?, api_key_env = ?, base_url = ?,
-                        additional_params = ?, is_active = ?, is_default = ?, updated_at = ?
+                        additional_params = ?, embedding_model = ?, embedding_api_key_env = ?,
+                        embedding_base_url = ?, embedding_additional_params = ?,
+                        is_active = ?, is_default = ?, updated_at = ?
                     WHERE id = ?
                 """,
                     (
@@ -114,6 +145,10 @@ class ProviderStateService:
                         provider_model.api_key_env,
                         provider_model.base_url,
                         provider_model.additional_params,
+                        provider_model.embedding_model,
+                        provider_model.embedding_api_key_env,
+                        provider_model.embedding_base_url,
+                        provider_model.embedding_additional_params,
                         provider_model.is_active,
                         provider_model.is_default,
                         provider_model.updated_at,
@@ -127,9 +162,10 @@ class ProviderStateService:
                 cursor = conn.execute(
                     """
                     INSERT INTO providers 
-                    (name, provider_type, model, api_key_env, base_url, additional_params, 
+                    (name, provider_type, model, api_key_env, base_url, additional_params,
+                     embedding_model, embedding_api_key_env, embedding_base_url, embedding_additional_params,
                      is_active, is_default, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         provider_model.name,
@@ -138,6 +174,10 @@ class ProviderStateService:
                         provider_model.api_key_env,
                         provider_model.base_url,
                         provider_model.additional_params,
+                        provider_model.embedding_model,
+                        provider_model.embedding_api_key_env,
+                        provider_model.embedding_base_url,
+                        provider_model.embedding_additional_params,
                         provider_model.is_active,
                         provider_model.is_default,
                         provider_model.created_at,

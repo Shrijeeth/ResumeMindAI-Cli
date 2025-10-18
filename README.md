@@ -1,16 +1,28 @@
 # ResumeMindAI CLI
 
-AI-powered resume analysis and optimization tool with persistent provider management and support for multiple LLM providers.
+AI-powered resume analysis and optimization tool with GraphRAG capabilities, persistent provider management, and multi-provider embedding support.
 
 ## Features
 
-- **🔄 Persistent Provider Management**: Save, manage, and switch between multiple LLM providers
+### 🧠 GraphRAG & Vector Embeddings
+- **🔍 Semantic Search**: Vector-based similarity search across resume entities and relationships
+- **📊 Knowledge Graphs**: Convert resumes into structured graph databases with FalkorDB
+- **🎯 Multi-Provider Embeddings**: Support for OpenAI, Ollama, Google, and custom embedding models
+- **💡 Intelligent Matching**: Context-aware candidate matching and skill analysis
+
+### 🔄 Provider Management
 - **🚀 Smart Startup**: Automatically loads your active provider on startup
 - **🎨 Rich Interactive UI**: Beautiful terminal interface with provider tables and management menus
 - **🤖 Agent-Ready**: Clean API for programmatic provider management
 - **🔧 Universal LLM Support**: Any model supported by LiteLLM (OpenAI, Anthropic, Google, Ollama, etc.)
 - **💾 SQLite Persistence**: Providers persist across application restarts
 - **🔒 Secure Storage**: API keys and configurations stored locally
+
+### 🌐 Flexible Deployment
+- **☁️ Cloud & Local**: Mix and match cloud LLMs with local embeddings
+- **💰 Cost Optimization**: Use free Ollama embeddings with premium LLMs
+- **🔐 Privacy First**: Complete offline operation with Ollama
+- **⚡ Performance**: Batch processing and intelligent caching
 
 ## Installation
 
@@ -40,9 +52,11 @@ python main.py
 You'll be prompted to create your first provider:
 
 1. Enter a custom name for your provider (e.g., "My GPT-4")
-2. Specify the model (e.g., `gpt-4o`, `claude-3-5-sonnet-20241022`)
+2. Specify the LLM model (e.g., `gpt-4o`, `claude-3-5-sonnet-20241022`, `ollama/llama3.2`)
 3. Enter API key (if required)
-4. Set base URL (if needed, e.g., for Ollama)
+4. Set base URL (if needed, e.g., for Ollama: `http://localhost:11434`)
+5. Configure embedding model (optional - auto-selected based on LLM if empty)
+6. Set embedding credentials (optional - uses LLM credentials if empty)
 
 ### Subsequent Runs
 

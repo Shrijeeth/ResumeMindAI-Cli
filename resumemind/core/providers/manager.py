@@ -273,11 +273,41 @@ class ProviderManager:
                 default="",
             )
 
+            # Embedding Configuration
+            self.display.print("\n[bold cyan]🔍 Embedding Configuration[/bold cyan]")
+            self.display.print(
+                "[dim]Configure embedding model for GraphRAG support:[/dim]"
+            )
+            self.display.print(
+                "[dim]• Leave empty for auto-selection based on your LLM model[/dim]"
+            )
+            self.display.print(
+                "[dim]• OpenAI: text-embedding-3-small, text-embedding-3-large[/dim]"
+            )
+            self.display.print(
+                "[dim]• Ollama: ollama/nomic-embed-text, ollama/mxbai-embed-large[/dim]"
+            )
+            self.display.print("[dim]• Google: text-embedding-004[/dim]\n")
+
+            embedding_model = Prompt.ask("Enter embedding model (optional)", default="")
+            embedding_api_key = Prompt.ask(
+                "Enter embedding API key (optional, will use LLM key if empty)",
+                default="",
+                password=True,
+            )
+            embedding_base_url = Prompt.ask(
+                "Enter embedding base URL (optional, will use LLM URL if empty)",
+                default="",
+            )
+
             # Create config with the custom name
             config, litellm_config = LLMProviders.create_custom_config(
                 model=model,
                 api_key=api_key if api_key else None,
                 base_url=base_url if base_url else None,
+                embedding_model=embedding_model if embedding_model else None,
+                embedding_api_key=embedding_api_key if embedding_api_key else None,
+                embedding_base_url=embedding_base_url if embedding_base_url else None,
             )
 
             # Update the config name to use the user-provided name

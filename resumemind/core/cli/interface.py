@@ -25,7 +25,7 @@ class CLIInterface:
         return self.provider_manager.get_or_create_provider()
 
     def get_custom_model_config(self) -> Tuple[ProviderConfig, dict]:
-        """Get custom model configuration from user (legacy method)"""
+        """Get custom model configuration from user with embedding support"""
         self.display.print("\n[bold cyan]🤖 LiteLLM Model Configuration[/bold cyan]")
         self.display.print(
             "[dim]Configure any model supported by LiteLLM. Examples:[/dim]"
@@ -42,6 +42,7 @@ class CLIInterface:
             "[dim]• And many more providers supported by LiteLLM[/dim]\n"
         )
 
+        # LLM Configuration
         model = Prompt.ask("Enter model name")
         api_key = Prompt.ask(
             "Enter API key (optional for local models like Ollama)", default=""
@@ -51,10 +52,37 @@ class CLIInterface:
             default="",
         )
 
+        # Embedding Configuration
+        self.display.print("\n[bold cyan]🔍 Embedding Configuration[/bold cyan]")
+        self.display.print(
+            "[dim]Configure embedding model for GraphRAG support. Examples:[/dim]"
+        )
+        self.display.print(
+            "[dim]• OpenAI: text-embedding-3-small, text-embedding-3-large[/dim]"
+        )
+        self.display.print(
+            "[dim]• Ollama: ollama/nomic-embed-text, ollama/mxbai-embed-large[/dim]"
+        )
+        self.display.print("[dim]• Google: text-embedding-004[/dim]")
+        self.display.print(
+            "[dim]• Leave empty for auto-selection based on your LLM model[/dim]\n"
+        )
+
+        embedding_model = Prompt.ask("Enter embedding model (optional)", default="")
+        embedding_api_key = Prompt.ask(
+            "Enter embedding API key (optional, will use LLM key if empty)", default=""
+        )
+        embedding_base_url = Prompt.ask(
+            "Enter embedding base URL (optional, will use LLM URL if empty)", default=""
+        )
+
         return LLMProviders.create_custom_config(
             model=model,
             api_key=api_key if api_key else None,
             base_url=base_url if base_url else None,
+            embedding_model=embedding_model if embedding_model else None,
+            embedding_api_key=embedding_api_key if embedding_api_key else None,
+            embedding_base_url=embedding_base_url if embedding_base_url else None,
         )
 
     def show_main_menu(self) -> str:

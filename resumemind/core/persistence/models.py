@@ -13,7 +13,7 @@ from ..providers.config import ProviderConfig
 
 @dataclass
 class ProviderModel:
-    """Database model for provider configuration"""
+    """Database model for provider configuration with embedding support"""
 
     id: Optional[int] = None
     name: str = ""
@@ -22,6 +22,13 @@ class ProviderModel:
     api_key_env: Optional[str] = None
     base_url: Optional[str] = None
     additional_params: Optional[str] = None  # JSON string
+
+    # Embedding configuration
+    embedding_model: Optional[str] = None
+    embedding_api_key_env: Optional[str] = None
+    embedding_base_url: Optional[str] = None
+    embedding_additional_params: Optional[str] = None  # JSON string
+
     is_active: bool = False
     is_default: bool = False
     created_at: Optional[str] = None
@@ -36,6 +43,12 @@ class ProviderModel:
         if config.additional_params:
             additional_params_json = json.dumps(config.additional_params)
 
+        embedding_additional_params_json = None
+        if config.embedding_additional_params:
+            embedding_additional_params_json = json.dumps(
+                config.embedding_additional_params
+            )
+
         return cls(
             name=config.name,
             provider_type=config.provider_type.value,
@@ -43,6 +56,10 @@ class ProviderModel:
             api_key_env=config.api_key_env,
             base_url=config.base_url,
             additional_params=additional_params_json,
+            embedding_model=config.embedding_model,
+            embedding_api_key_env=config.embedding_api_key_env,
+            embedding_base_url=config.embedding_base_url,
+            embedding_additional_params=embedding_additional_params_json,
             is_active=is_active,
             is_default=is_default,
             created_at=datetime.now().isoformat(),
@@ -55,6 +72,10 @@ class ProviderModel:
         if self.additional_params:
             additional_params = json.loads(self.additional_params)
 
+        embedding_additional_params = None
+        if self.embedding_additional_params:
+            embedding_additional_params = json.loads(self.embedding_additional_params)
+
         return ProviderConfig(
             name=self.name,
             provider_type=ProviderType(self.provider_type),
@@ -62,6 +83,10 @@ class ProviderModel:
             api_key_env=self.api_key_env,
             base_url=self.base_url,
             additional_params=additional_params,
+            embedding_model=self.embedding_model,
+            embedding_api_key_env=self.embedding_api_key_env,
+            embedding_base_url=self.embedding_base_url,
+            embedding_additional_params=embedding_additional_params,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,6 +98,10 @@ class ProviderModel:
             "api_key_env": self.api_key_env,
             "base_url": self.base_url,
             "additional_params": self.additional_params,
+            "embedding_model": self.embedding_model,
+            "embedding_api_key_env": self.embedding_api_key_env,
+            "embedding_base_url": self.embedding_base_url,
+            "embedding_additional_params": self.embedding_additional_params,
             "is_active": self.is_active,
             "is_default": self.is_default,
             "created_at": self.created_at,
@@ -90,6 +119,10 @@ class ProviderModel:
             api_key_env=data.get("api_key_env"),
             base_url=data.get("base_url"),
             additional_params=data.get("additional_params"),
+            embedding_model=data.get("embedding_model"),
+            embedding_api_key_env=data.get("embedding_api_key_env"),
+            embedding_base_url=data.get("embedding_base_url"),
+            embedding_additional_params=data.get("embedding_additional_params"),
             is_active=data.get("is_active", False),
             is_default=data.get("is_default", False),
             created_at=data.get("created_at"),

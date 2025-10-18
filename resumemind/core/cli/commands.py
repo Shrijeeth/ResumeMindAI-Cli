@@ -6,8 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from resumemind.core.services.resume_ingestion_service import (
-    process_resume_content,
-    read_resume,
+    complete_resume_ingestion_workflow,
 )
 
 from ..providers import ProviderConfig
@@ -115,33 +114,92 @@ class CommandHandler:
         self.display.print("\n[bold yellow]🔄 Ingesting Your Resume...[/bold yellow]")
 
         try:
-            # Simulate analysis steps
-            import asyncio
+            # Use the complete workflow
+            self.display.print(
+                "[dim]🚀 Starting complete resume ingestion workflow...[/dim]"
+            )
 
-            self.display.print("[dim]📖 Reading resume file...[/dim]")
-            self.current_resume_content = await read_resume(self.current_resume_path)
-
-            self.display.print("[dim]🪄 Cleaning up your resume...[/dim]")
-            self.processed_resume_content = await process_resume_content(
-                self.current_resume_content,
+            workflow_result = await complete_resume_ingestion_workflow(
+                self.current_resume_path,
                 self.selected_provider,
             )
 
-            self.display.print("[dim]🧠 Analyzing content with AI...[/dim]")
-            await asyncio.sleep(2)
+            if workflow_result["success"]:
+                # Display detailed results
+                self.display.print(
+                    f"[dim]📄 Resume ID: {workflow_result['resume_id']}[/dim]"
+                )
+                self.display.print(
+                    f"[dim]📊 Extracted {workflow_result['triplet_count']} relationships[/dim]"
+                )
+                self.display.print(
+                    f"[dim]🏷️  Identified {workflow_result['entity_count']} entities[/dim]"
+                )
 
-            self.display.print("[dim]📊 Ingesting content to GraphDB...[/dim]")
-            await asyncio.sleep(1)
+                if workflow_result["graph_stored"]:
+                    self.display.print(
+                        "[dim]💾 Successfully stored in graph database[/dim]"
+                    )
+                else:
+                    self.display.print("[dim]⚠️  Graph database storage failed[/dim]")
 
-            # Show results
-            self.display.print(
-                "\n[bold green]✅ Resume Ingestion Complete![/bold green]"
-            )
+                # Store results for potential future use
+                self.workflow_result = workflow_result
+
+                # Show completion message
+                self.display.print(
+                    "\n[bold green]✅ Resume Ingestion Complete![/bold green]"
+                )
+
+                # Display some sample entities and relationships
+                self._display_graph_summary(workflow_result)
+
+            else:
+                self.display.print(
+                    f"\n[red]Workflow failed: {workflow_result.get('error', 'Unknown error')}[/red]"
+                )
 
         except Exception as e:
             self.display.print(f"\n[red]Ingestion failed: {str(e)}[/red]")
 
         input("\nPress Enter to return to main menu...")
+
+    def _display_graph_summary(self, workflow_result: dict):
+        """Display a summary of the extracted graph data"""
+        if not workflow_result.get("graph_data"):
+            return
+
+        graph_data = workflow_result["graph_data"]
+
+        # Display sample entities by type
+        self.display.print("\n[bold]📊 Graph Summary:[/bold]")
+
+        # Group entities by type
+        entities_by_type = {}
+        for entity_name, entity_type in graph_data.entities.items():
+            if entity_type not in entities_by_type:
+                entities_by_type[entity_type] = []
+            entities_by_type[entity_type].append(entity_name)
+
+        # Display top entity types
+        for entity_type, entities in list(entities_by_type.items())[:5]:
+            entity_list = ", ".join(entities[:3])
+            if len(entities) > 3:
+                entity_list += f" (+{len(entities) - 3} more)"
+            self.display.print(f"[dim]• {entity_type}: {entity_list}[/dim]")
+
+        # Display sample relationships
+        if graph_data.triplets:
+            self.display.print("\n[bold]🔗 Sample Relationships:[/bold]")
+            for triplet in graph_data.triplets[:3]:
+                self.display.print(
+                    f"[dim]• {triplet.subject} → {triplet.predicate} → {triplet.object}[/dim]"
+                )
+
+            if len(graph_data.triplets) > 3:
+                self.display.print(
+                    f"[dim]• ... and {len(graph_data.triplets) - 3} more relationships[/dim]"
+                )
 
     async def handle_provider_management(self):
         """Handle provider management workflow"""
