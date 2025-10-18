@@ -9,6 +9,7 @@ from typing import Optional, Tuple
 from rich.prompt import Confirm, Prompt
 
 from ..providers import LLMProviders, ProviderConfig
+from ..providers.manager import ProviderManager
 from ..utils import DisplayManager
 
 
@@ -17,13 +18,14 @@ class CLIInterface:
 
     def __init__(self):
         self.display = DisplayManager()
+        self.provider_manager = ProviderManager()
 
     def select_model(self) -> Tuple[Optional[ProviderConfig], Optional[dict]]:
-        """Configure a custom LiteLLM model"""
-        return self.get_custom_model_config()
+        """Select or configure a LiteLLM model using the provider manager"""
+        return self.provider_manager.get_or_create_provider()
 
     def get_custom_model_config(self) -> Tuple[ProviderConfig, dict]:
-        """Get custom model configuration from user"""
+        """Get custom model configuration from user (legacy method)"""
         self.display.print("\n[bold cyan]🤖 LiteLLM Model Configuration[/bold cyan]")
         self.display.print(
             "[dim]Configure any model supported by LiteLLM. Examples:[/dim]"
@@ -62,7 +64,7 @@ class CLIInterface:
 
         menu_options = {
             "1": "📄 Resume Ingestion",
-            "2": "⚙️ Change LLM Provider",
+            "2": "🤖 Manage Providers",
             "3": "❌ Exit",
         }
 
@@ -74,6 +76,10 @@ class CLIInterface:
         )
 
         return choice
+
+    def show_provider_management_menu(self) -> Optional[Tuple[ProviderConfig, dict]]:
+        """Show provider management interface"""
+        return self.provider_manager.get_or_create_provider()
 
     def get_resume_file_path(self) -> Optional[str]:
         """Get resume file path from user with validation"""

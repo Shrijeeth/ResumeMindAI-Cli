@@ -1,5 +1,5 @@
 """
-LLM Provider management system
+LLM Provider management and configuration
 """
 
 from .base import ProviderType

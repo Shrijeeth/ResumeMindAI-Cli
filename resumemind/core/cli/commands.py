@@ -61,10 +61,7 @@ class CommandHandler:
                 if choice == "1":
                     await self.handle_resume_ingestion()
                 elif choice == "2":
-                    self.display.print(
-                        "\n[yellow]Provider change requested. Please restart the application.[/yellow]"
-                    )
-                    return
+                    await self.handle_provider_management()
                 elif choice == "3":
                     self.display.print(
                         "\n[bold cyan]Thank you for using ResumeMindAI! 👋[/bold cyan]"
@@ -145,3 +142,15 @@ class CommandHandler:
             self.display.print(f"\n[red]Ingestion failed: {str(e)}[/red]")
 
         input("\nPress Enter to return to main menu...")
+
+    async def handle_provider_management(self):
+        """Handle provider management workflow"""
+        self.display.print("\n[bold cyan]🤖 Provider Management[/bold cyan]")
+
+        result = self.interface.show_provider_management_menu()
+        if result:
+            config, litellm_config = result
+            self.set_provider_config(config, litellm_config)
+            self.display.print(f"\n[green]✅ Provider updated: {config.name}[/green]")
+        else:
+            self.display.print("\n[yellow]Provider management cancelled.[/yellow]")
