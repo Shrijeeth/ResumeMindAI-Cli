@@ -5,6 +5,7 @@ services:
     container_name: falkordb-instance
     ports:
       - "6389:6379" # Default FalkorDB port
+      - "3010:3000" # FalkorDB web interface
     restart: always
     volumes:
       # Optional: Persist data outside the container
