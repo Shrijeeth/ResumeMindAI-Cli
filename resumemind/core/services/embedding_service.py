@@ -31,38 +31,134 @@ class EmbeddingService:
         self.base_url = base_url
         self.additional_params = additional_params or {}
 
+        # Get model-specific token limit
+        token_limits = get_embedding_token_limits()
+        self.max_tokens = token_limits.get(model, token_limits["default"])
+
         # Configure LiteLLM
         if api_key:
             litellm.api_key = api_key
         if base_url:
             litellm.api_base = base_url
 
+    def _chunk_text(self, text: str, max_tokens: Optional[int] = None) -> List[str]:
+        """
+        Chunk text into smaller pieces that fit within token limits.
+
+        Args:
+            text: Text to chunk
+            max_tokens: Maximum tokens per chunk (default 7000 to be safe)
+
+        Returns:
+            List of text chunks
+        """
+        # Use model-specific token limit if not provided
+        if max_tokens is None:
+            max_tokens = int(self.max_tokens * 0.8)  # Use 80% of limit for safety
+
+        # Simple chunking by characters (rough approximation: 1 token ≈ 4 characters)
+        max_chars = max_tokens * 4
+
+        if len(text) <= max_chars:
+            return [text]
+
+        chunks = []
+        start = 0
+
+        while start < len(text):
+            end = start + max_chars
+
+            # Try to break at sentence boundaries
+            if end < len(text):
+                # Look for sentence endings within the last 500 characters
+                search_start = max(start, end - 500)
+                sentence_end = -1
+
+                for delimiter in [". ", ".\n", "! ", "!\n", "? ", "?\n"]:
+                    pos = text.rfind(delimiter, search_start, end)
+                    if pos > sentence_end:
+                        sentence_end = pos + len(delimiter)
+
+                if sentence_end > start:
+                    end = sentence_end
+
+            chunk = text[start:end].strip()
+            if chunk:
+                chunks.append(chunk)
+
+            start = end
+
+        return chunks
+
     async def generate_embedding(self, text: str) -> List[float]:
         """
-        Generate vector embedding for a single text.
+        Generate vector embedding for a single text with automatic chunking.
 
         Args:
             text: Text to embed
 
         Returns:
-            Vector embedding as list of floats
+            Vector embedding as list of floats (averaged if chunked)
         """
         try:
-            response = await litellm.aembedding(
-                model=self.model,
-                input=text,
-                api_key=self.api_key,
-                api_base=self.base_url,
-                **self.additional_params,
-            )
-            return response.data[0]["embedding"]
+            # Check if text needs chunking
+            chunks = self._chunk_text(text)
+
+            if len(chunks) == 1:
+                # Single chunk, process normally
+                response = await litellm.aembedding(
+                    model=self.model,
+                    input=text,
+                    api_key=self.api_key,
+                    api_base=self.base_url,
+                    **self.additional_params,
+                )
+                return response.data[0]["embedding"]
+            else:
+                # Multiple chunks, process and average
+                print(
+                    f"Text too large ({len(text)} chars), chunking into {len(chunks)} pieces"
+                )
+                chunk_embeddings = []
+
+                for i, chunk in enumerate(chunks):
+                    try:
+                        response = await litellm.aembedding(
+                            model=self.model,
+                            input=chunk,
+                            api_key=self.api_key,
+                            api_base=self.base_url,
+                            **self.additional_params,
+                        )
+                        chunk_embeddings.append(response.data[0]["embedding"])
+                        print(f"Processed chunk {i + 1}/{len(chunks)}")
+                    except Exception as e:
+                        print(f"Failed to embed chunk {i + 1}: {e}")
+                        continue
+
+                if not chunk_embeddings:
+                    return []
+
+                # Average the embeddings
+                avg_embedding = []
+                embedding_dim = len(chunk_embeddings[0])
+
+                for dim in range(embedding_dim):
+                    avg_value = sum(emb[dim] for emb in chunk_embeddings) / len(
+                        chunk_embeddings
+                    )
+                    avg_embedding.append(avg_value)
+
+                print(f"Averaged {len(chunk_embeddings)} chunk embeddings")
+                return avg_embedding
+
         except Exception as e:
             print(f"Failed to generate embedding for text: {e}")
             return []
 
     async def generate_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
         """
-        Generate vector embeddings for multiple texts in batch.
+        Generate vector embeddings for multiple texts in batch with chunking support.
 
         Args:
             texts: List of texts to embed
@@ -71,17 +167,43 @@ class EmbeddingService:
             List of vector embeddings
         """
         try:
-            response = await litellm.aembedding(
-                model=self.model,
-                input=texts,
-                api_key=self.api_key,
-                api_base=self.base_url,
-                **self.additional_params,
-            )
-            return [data["embedding"] for data in response.data]
+            # Check if any texts need chunking
+            needs_chunking = any(len(text) > 28000 for text in texts)  # ~7k tokens
+
+            if not needs_chunking:
+                # Process normally if all texts are small enough
+                response = await litellm.aembedding(
+                    model=self.model,
+                    input=texts,
+                    api_key=self.api_key,
+                    api_base=self.base_url,
+                    **self.additional_params,
+                )
+                return [data["embedding"] for data in response.data]
+            else:
+                # Process individually with chunking support
+                print(
+                    f"Some texts are large, processing {len(texts)} texts individually..."
+                )
+                embeddings = []
+
+                for i, text in enumerate(texts):
+                    embedding = await self.generate_embedding(text)
+                    embeddings.append(embedding)
+                    if (i + 1) % 5 == 0:  # Progress update every 5 texts
+                        print(f"Processed {i + 1}/{len(texts)} texts")
+
+                return embeddings
+
         except Exception as e:
             print(f"Failed to generate batch embeddings: {e}")
-            return [[] for _ in texts]
+            # Fallback to individual processing
+            print("Falling back to individual processing...")
+            embeddings = []
+            for text in texts:
+                embedding = await self.generate_embedding(text)
+                embeddings.append(embedding)
+            return embeddings
 
     async def embed_graph_data(self, graph_data, resume_content: str):
         """
@@ -94,40 +216,64 @@ class EmbeddingService:
         Returns:
             Updated ResumeGraphExtractionOutput with embeddings
         """
-        # Collect all texts to embed
+        # Prepare texts for embedding with shorter, focused descriptions
         texts_to_embed = []
-        text_mappings = {}
+        text_mappings = {}  # Maps text index to (type, identifier)
 
-        # Add entity descriptions
-        entity_texts = []
-        for entity_name, description in graph_data.entity_descriptions.items():
-            full_text = f"Entity: {entity_name}\nType: {graph_data.entities[entity_name]}\nDescription: {description}\nContext: {resume_content[:500]}"
-            entity_texts.append(full_text)
-            texts_to_embed.append(full_text)
+        # Use shorter context to avoid token limits
+        # short_context = resume_content[:200] if resume_content else ""
+
+        # Add entity descriptions (keep them concise)
+        for entity_name, entity_description in graph_data.entity_descriptions.items():
+            # Create focused text for embedding (limit description length)
+            description = (
+                entity_description[:300] if entity_description else entity_name
+            )
+            entity_text = f"{entity_name}: {description}"
+            texts_to_embed.append(entity_text)
             text_mappings[len(texts_to_embed) - 1] = ("entity", entity_name)
 
-        # Add triplet descriptions
+        # Add triplet descriptions (more concise)
         for i, triplet in enumerate(graph_data.triplets):
-            # Subject description
-            subject_text = f"Entity: {triplet.subject}\nType: {triplet.subject_type}\nDescription: {triplet.subject_description}\nContext: {resume_content[:500]}"
+            # Subject description (concise)
+            subject_desc = (
+                triplet.subject_description[:200]
+                if triplet.subject_description
+                else triplet.subject
+            )
+            subject_text = f"{triplet.subject} ({triplet.subject_type}): {subject_desc}"
             texts_to_embed.append(subject_text)
             text_mappings[len(texts_to_embed) - 1] = ("triplet_subject", i)
 
-            # Object description
-            object_text = f"Entity: {triplet.object}\nType: {triplet.object_type}\nDescription: {triplet.object_description}\nContext: {resume_content[:500]}"
+            # Object description (concise)
+            object_desc = (
+                triplet.object_description[:200]
+                if triplet.object_description
+                else triplet.object
+            )
+            object_text = f"{triplet.object} ({triplet.object_type}): {object_desc}"
             texts_to_embed.append(object_text)
             text_mappings[len(texts_to_embed) - 1] = ("triplet_object", i)
 
-            # Relationship description
-            relationship_text = f"Relationship: {triplet.predicate}\nSubject: {triplet.subject} ({triplet.subject_type})\nObject: {triplet.object} ({triplet.object_type})\nDescription: {triplet.relationship_description}\nContext: {resume_content[:500]}"
+            # Relationship description (concise)
+            rel_desc = (
+                triplet.relationship_description[:300]
+                if triplet.relationship_description
+                else f"{triplet.subject} {triplet.predicate} {triplet.object}"
+            )
+            relationship_text = f"{triplet.predicate}: {rel_desc}"
             texts_to_embed.append(relationship_text)
             text_mappings[len(texts_to_embed) - 1] = ("triplet_relationship", i)
 
         # Generate embeddings in batch
         embeddings = await self.generate_embeddings_batch(texts_to_embed)
 
-        # Map embeddings back to entities and triplets
+        # Create separate embedding dictionaries (don't modify graph_data)
         entity_embeddings = {}
+        triplet_subject_embeddings = {}
+        triplet_object_embeddings = {}
+        triplet_relationship_embeddings = {}
+
         for idx, embedding in enumerate(embeddings):
             if idx in text_mappings:
                 mapping_type, mapping_id = text_mappings[idx]
@@ -135,14 +281,18 @@ class EmbeddingService:
                 if mapping_type == "entity":
                     entity_embeddings[mapping_id] = embedding
                 elif mapping_type == "triplet_subject":
-                    graph_data.triplets[mapping_id].subject_embedding = embedding
+                    triplet_subject_embeddings[mapping_id] = embedding
                 elif mapping_type == "triplet_object":
-                    graph_data.triplets[mapping_id].object_embedding = embedding
+                    triplet_object_embeddings[mapping_id] = embedding
                 elif mapping_type == "triplet_relationship":
-                    graph_data.triplets[mapping_id].relationship_embedding = embedding
+                    triplet_relationship_embeddings[mapping_id] = embedding
 
-        # Update the graph data with embeddings
-        graph_data.entity_embeddings = entity_embeddings
+        # Store embeddings separately for use by graph database
+        # Don't modify the original graph_data structure
+        self.last_entity_embeddings = entity_embeddings
+        self.last_triplet_subject_embeddings = triplet_subject_embeddings
+        self.last_triplet_object_embeddings = triplet_object_embeddings
+        self.last_triplet_relationship_embeddings = triplet_relationship_embeddings
 
         return graph_data
 
@@ -265,4 +415,28 @@ def get_default_embedding_models() -> Dict[str, str]:
         "gemini": "text-embedding-004",
         "claude": "text-embedding-3-small",  # Fallback to OpenAI
         "custom": "text-embedding-3-small",  # Default fallback
+    }
+
+
+def get_embedding_token_limits() -> Dict[str, int]:
+    """
+    Get token limits for different embedding models.
+
+    Returns:
+        Dictionary mapping model names to their token limits
+    """
+    return {
+        # OpenAI models
+        "text-embedding-3-small": 8191,
+        "text-embedding-3-large": 8191,
+        "text-embedding-ada-002": 8191,
+        # Google models
+        "text-embedding-004": 8000,  # Conservative limit for Gemini
+        "text-embedding-gecko-001": 8000,
+        # Ollama models (generally more flexible)
+        "ollama/nomic-embed-text": 8192,
+        "ollama/mxbai-embed-large": 8192,
+        "ollama/all-minilm": 8192,
+        # Default fallback
+        "default": 7000,  # Conservative default
     }

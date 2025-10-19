@@ -4,10 +4,13 @@ AI-powered resume analysis and optimization tool
 """
 
 import asyncio
+import warnings
 
 from resumemind.core.cli import CLIInterface, CommandHandler
 from resumemind.core.persistence import ProviderStateService
 from resumemind.core.utils import DisplayManager
+
+warnings.filterwarnings("ignore")
 
 
 class ResumeMindApp:

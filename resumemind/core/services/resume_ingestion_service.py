@@ -64,15 +64,18 @@ async def extract_resume_graph(formatted_resume: str, provider_config: ProviderC
         response_with_embeddings = await embedding_service.embed_graph_data(
             response, formatted_resume
         )
-        return response_with_embeddings
+        return response_with_embeddings, embedding_service
     except Exception as e:
         print(f"Warning: Failed to generate embeddings: {e}")
         print("Continuing without embeddings...")
-        return response
+        return response, None
 
 
 async def store_resume_in_graph_db(
-    resume_path: str, graph_data, graph_db_service: GraphDatabaseService = None
+    resume_path: str,
+    graph_data,
+    graph_db_service: GraphDatabaseService = None,
+    embedding_service=None,
 ) -> bool:
     """
     Store resume graph data in the graph database.
@@ -81,6 +84,7 @@ async def store_resume_in_graph_db(
         resume_path: Path to the original resume file
         graph_data: ResumeGraphExtractionOutput from the workflow
         graph_db_service: Optional graph database service instance
+        embedding_service: Optional embedding service to get embeddings from
 
     Returns:
         True if successful, False otherwise
@@ -99,10 +103,37 @@ async def store_resume_in_graph_db(
 
     try:
         # Create indexes for better performance
-        graph_db_service.create_indexes()
+        await graph_db_service.create_indexes()
 
-        # Store the resume graph
-        success = graph_db_service.store_resume_graph(resume_id, graph_data)
+        # Get embeddings from embedding service if available
+        entity_embeddings = None
+        triplet_subject_embeddings = None
+        triplet_object_embeddings = None
+        triplet_relationship_embeddings = None
+
+        if embedding_service:
+            entity_embeddings = getattr(
+                embedding_service, "last_entity_embeddings", None
+            )
+            triplet_subject_embeddings = getattr(
+                embedding_service, "last_triplet_subject_embeddings", None
+            )
+            triplet_object_embeddings = getattr(
+                embedding_service, "last_triplet_object_embeddings", None
+            )
+            triplet_relationship_embeddings = getattr(
+                embedding_service, "last_triplet_relationship_embeddings", None
+            )
+
+        # Store the resume graph with embeddings
+        success = await graph_db_service.store_resume_graph(
+            resume_id,
+            graph_data,
+            entity_embeddings,
+            triplet_subject_embeddings,
+            triplet_object_embeddings,
+            triplet_relationship_embeddings,
+        )
 
         if success:
             print(f"Successfully stored resume graph with ID: {resume_id}")
@@ -112,7 +143,7 @@ async def store_resume_in_graph_db(
         return success
 
     finally:
-        graph_db_service.disconnect()
+        await graph_db_service.disconnect()
 
 
 def generate_resume_id(resume_path: str) -> str:
@@ -155,10 +186,14 @@ async def complete_resume_ingestion_workflow(
         formatted_content = await process_resume_content(raw_content, provider_config)
 
         # Step 3: Extract graph relationships
-        graph_data = await extract_resume_graph(formatted_content, provider_config)
+        graph_data, embedding_service = await extract_resume_graph(
+            formatted_content, provider_config
+        )
 
         # Step 4: Store in graph database
-        storage_success = await store_resume_in_graph_db(resume_path, graph_data)
+        storage_success = await store_resume_in_graph_db(
+            resume_path, graph_data, embedding_service=embedding_service
+        )
 
         # Generate resume ID for reference
         resume_id = generate_resume_id(resume_path)

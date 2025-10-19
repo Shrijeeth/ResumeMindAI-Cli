@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 
 class GraphTriplet(BaseModel):
-    """Represents a single graph triplet (subject, predicate, object) with vector embeddings"""
+    """Represents a single graph triplet (subject, predicate, object)"""
 
     subject: str = Field(description="The subject node of the triplet")
     predicate: str = Field(
@@ -17,8 +17,6 @@ class GraphTriplet(BaseModel):
     object: str = Field(description="The object node of the triplet")
     subject_type: str = Field(description="Type/category of the subject node")
     object_type: str = Field(description="Type/category of the object node")
-
-    # Vector embeddings for GraphRAG
     subject_description: str = Field(
         description="Detailed description of the subject entity for context"
     )
@@ -27,15 +25,6 @@ class GraphTriplet(BaseModel):
     )
     relationship_description: str = Field(
         description="Detailed description of the relationship for context"
-    )
-    subject_embedding: Optional[List[float]] = Field(
-        default=None, description="Vector embedding of the subject entity"
-    )
-    object_embedding: Optional[List[float]] = Field(
-        default=None, description="Vector embedding of the object entity"
-    )
-    relationship_embedding: Optional[List[float]] = Field(
-        default=None, description="Vector embedding of the relationship"
     )
 
 
@@ -50,10 +39,6 @@ class ResumeGraphExtractionOutput(BaseModel):
     )
     entity_descriptions: Dict[str, str] = Field(
         description="Dictionary mapping entity names to their detailed descriptions"
-    )
-    entity_embeddings: Optional[Dict[str, List[float]]] = Field(
-        default=None,
-        description="Dictionary mapping entity names to their vector embeddings",
     )
     validation_status: bool = Field(
         description="Whether the extraction was successful and valid"
@@ -168,7 +153,7 @@ class ResumeGraphExtractionWorkflow:
                     instructions=dedent("""
                         You are a graph data validator for resume knowledge graphs.
                         Your task is to validate, clean, and optimize the extracted graph structure.
-                        
+
                         Validation Criteria:
                         - Entity consistency: Same entities should have consistent names and types
                         - Relationship validity: All relationships should be meaningful and factual
@@ -232,7 +217,7 @@ class ResumeGraphExtractionWorkflow:
             name="Graph JSON Formatter",
             role="Convert graph extraction results into structured JSON format with descriptions",
             instructions=dedent("""
-                You are a JSON formatter specialized in graph data structures with vector embedding support.
+                You are a JSON formatter specialized in graph data structures.
                 You receive the output from the graph extraction team and convert it into the required JSON schema.
 
                 Your tasks:
@@ -243,7 +228,7 @@ class ResumeGraphExtractionWorkflow:
                 5. Create entity dictionary mapping names to types
                 6. Create entity descriptions dictionary with rich contextual information
                 7. Assess validation status and provide summary message
-                
+
                 Description Requirements:
                 - Subject descriptions: Provide rich context about the entity (e.g., "John Doe is a Senior Software Engineer with 5 years of experience in Python and machine learning")
                 - Object descriptions: Detailed context about the target entity (e.g., "Google is a multinational technology company specializing in search, cloud computing, and AI")
@@ -257,7 +242,7 @@ class ResumeGraphExtractionWorkflow:
                 - Validation status should reflect the quality of extraction
                 - Summary message should be informative about the process
 
-                Note: Vector embeddings will be generated separately, so focus on creating high-quality descriptions.
+                Note: Focus on creating high-quality descriptions.
                 Ensure the output strictly follows the ResumeGraphExtractionOutput schema.
             """),
             output_schema=ResumeGraphExtractionOutput,
