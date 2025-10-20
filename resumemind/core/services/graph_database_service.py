@@ -123,8 +123,8 @@ class GraphDatabaseService:
 
                 query = f"""
                 MERGE (e:{safe_label} {{
-                    name: '{safe_name}', 
-                    type: '{safe_type}', 
+                    name: '{safe_name}',
+                    type: '{safe_type}',
                     resume_id: '{resume_id}',
                     description: '{safe_description}',
                     embedding: {embedding_json}
@@ -187,9 +187,10 @@ class GraphDatabaseService:
                 entity_count: {len(graph_data.entities)},
                 triplet_count: {len(graph_data.triplets)},
                 validation_status: {str(graph_data.validation_status).lower()},
-                validation_message: '{graph_data.validation_message.replace("'", "\\'")}'
+                validation_message: '{graph_data.validation_message}'
             }})
             """
+            metadata_query = metadata_query.replace("'", "'")
             await self.graph.query(metadata_query)
 
             return True

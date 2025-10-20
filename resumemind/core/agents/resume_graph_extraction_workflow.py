@@ -34,12 +34,6 @@ class ResumeGraphExtractionOutput(BaseModel):
     triplets: List[GraphTriplet] = Field(
         description="List of graph triplets extracted from the resume"
     )
-    entities: Dict[str, str] = Field(
-        description="Dictionary mapping entity names to their types"
-    )
-    entity_descriptions: Dict[str, str] = Field(
-        description="Dictionary mapping entity names to their detailed descriptions"
-    )
     validation_status: bool = Field(
         description="Whether the extraction was successful and valid"
     )
@@ -78,7 +72,7 @@ class ResumeGraphExtractionWorkflow:
                     role="Extract entities and their types from resume content",
                     instructions=dedent("""
                         You are an expert entity extractor for resume data.
-                        Your task is to identify and extract all relevant entities from the resume content.
+                        Your task is to identify and extract all relevant entities from the given resume content.
 
                         Entity Types to Extract:
                         - PERSON: The resume owner's name
@@ -101,11 +95,13 @@ class ResumeGraphExtractionWorkflow:
                         - Include quantifiable achievements and metrics
                         - Identify both explicit and implicit entities
                         - Maintain consistency in entity naming
+                        - Do not add any extra content to the resume. Mainly focus on extracting entities only from the given resume content strictly.
 
                         Output format: List each entity with its type, one per line.
-                        Example: "Python (TECHNOLOGY)", "Google (COMPANY)", "Software Engineer (POSITION)"
+                        Examples: "Python (TECHNOLOGY)", "Google (COMPANY)", "Software Engineer (POSITION)"
                     """),
                     markdown=True,
+                    retries=3,
                 ),
                 Agent(
                     model=self.model,
@@ -113,7 +109,7 @@ class ResumeGraphExtractionWorkflow:
                     role="Identify relationships between extracted entities",
                     instructions=dedent("""
                         You are an expert relationship mapper for resume graph data.
-                        Your task is to identify meaningful relationships between entities.
+                        Your task is to identify meaningful relationships between entities for given entities and their types.
 
                         Relationship Types:
                         - WORKED_AT: Person worked at Company
@@ -140,11 +136,13 @@ class ResumeGraphExtractionWorkflow:
                         - Connect projects to technologies and skills used
                         - Identify management and collaboration relationships
                         - Include educational and certification relationships
+                        - Do not add any extra content to the resume. Mainly focus on extracting relationships only from the given resume content and entities strictly.
 
                         Output format: List relationships as triplets (Subject, Predicate, Object)
-                        Example: "John Doe, WORKED_AT, Google", "Python Project, USES_TECHNOLOGY, Django"
+                        Examples: "John Doe, WORKED_AT, Google", "Python Project, USES_TECHNOLOGY, Django"
                     """),
                     markdown=True,
+                    retries=3,
                 ),
                 Agent(
                     model=self.model,
@@ -174,15 +172,19 @@ class ResumeGraphExtractionWorkflow:
                         - Relationships should follow logical patterns
                         - No orphaned entities (entities with no relationships)
                         - Temporal consistency in date-related relationships
+                        - Extra content should not be added to the graph other than the given resume content and entities strictly.
 
                         Output the final validated graph structure with explanations for any changes made.
                     """),
                     markdown=True,
+                    retries=3,
                 ),
             ],
             instructions=dedent("""
                 You are the lead of a resume graph extraction team.
                 Your goal is to convert formatted resume content into a structured knowledge graph.
+                If the graph is not valid, ask the validator to fix it.
+                Stop the process when validator is ok with the output. Until then keep iterating the extraction and validation process.
 
                 Process:
                 1. Entity Extractor identifies all relevant entities and their types
@@ -261,26 +263,21 @@ class ResumeGraphExtractionWorkflow:
             ResumeGraphExtractionOutput containing triplets, entities, and validation info
         """
         message = dedent(f"""
-            Extract graph triplets from the following formatted resume content.
-            Convert all relevant information into a knowledge graph structure.
+            Resume Content in markdown format to be parsed:
 
-            Resume Content:
+            ```
             {formatted_resume}
-
-            Instructions:
-            - Extract all entities (people, companies, skills, technologies, etc.)
-            - Identify meaningful relationships between entities
-            - Create graph triplets in (subject, predicate, object) format
-            - Ensure all triplets are factually grounded in the resume content
-            - Optimize for comprehensive coverage and query capabilities
+            ```
         """)
 
         # Run the graph extraction team
         team_response = await self.graph_extraction_team.arun(input=message)
+        print(team_response.content)
 
         # Format the response into structured JSON
         json_response = await self.json_formatter_agent.arun(
             input=team_response.content
         )
+        print(json_response.content)
 
         return json_response.content

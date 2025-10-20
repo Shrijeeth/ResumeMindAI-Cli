@@ -189,6 +189,7 @@ async def complete_resume_ingestion_workflow(
         graph_data, embedding_service = await extract_resume_graph(
             formatted_content, provider_config
         )
+        print("Graph Data: ", graph_data)
 
         # Step 4: Store in graph database
         storage_success = await store_resume_in_graph_db(
