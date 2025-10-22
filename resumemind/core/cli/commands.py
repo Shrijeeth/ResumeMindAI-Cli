@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from resumemind.core.services.resume_ingestion_service import (
-    complete_resume_ingestion_workflow,
+    complete_resume_ingestion_workflow_with_human_review,
 )
 
 from ..providers import ProviderConfig
@@ -119,9 +119,12 @@ class CommandHandler:
                 "[dim]🚀 Starting complete resume ingestion workflow...[/dim]"
             )
 
-            workflow_result = await complete_resume_ingestion_workflow(
-                self.current_resume_path,
-                self.selected_provider,
+            workflow_result = (
+                await complete_resume_ingestion_workflow_with_human_review(
+                    self.current_resume_path,
+                    self.selected_provider,
+                    self.interface,
+                )
             )
 
             if workflow_result["success"]:
@@ -155,9 +158,15 @@ class CommandHandler:
                 self._display_graph_summary(workflow_result)
 
             else:
-                self.display.print(
-                    f"\n[red]Workflow failed: {workflow_result.get('error', 'Unknown error')}[/red]"
-                )
+                # Check if user cancelled during review
+                if workflow_result.get("user_cancelled"):
+                    self.display.print(
+                        "\n[yellow]Resume ingestion was cancelled during the review process.[/yellow]"
+                    )
+                else:
+                    self.display.print(
+                        f"\n[red]Workflow failed: {workflow_result.get('error', 'Unknown error')}[/red]"
+                    )
 
         except Exception as e:
             self.display.print(f"\n[red]Ingestion failed: {str(e)}[/red]")

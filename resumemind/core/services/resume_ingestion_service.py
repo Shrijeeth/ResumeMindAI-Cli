@@ -160,6 +160,92 @@ def generate_resume_id(resume_path: str) -> str:
     return f"resume_{resume_hash}"
 
 
+async def complete_resume_ingestion_workflow_with_human_review(
+    resume_path: str, provider_config: ProviderConfig, cli_interface
+) -> dict:
+    """
+    Complete end-to-end resume ingestion workflow with human-in-the-loop review.
+
+    Args:
+        resume_path: Path to the resume file
+        provider_config: LLM provider configuration
+        cli_interface: CLI interface instance for human review
+
+    Returns:
+        Dictionary with workflow results and statistics
+    """
+    try:
+        # Step 1: Read resume
+        raw_content = await read_resume(resume_path)
+
+        # Step 2: Clean and format resume
+        formatted_content = await process_resume_content(raw_content, provider_config)
+
+        # Step 3: Extract graph relationships
+        graph_data, embedding_service = await extract_resume_graph(
+            formatted_content, provider_config
+        )
+        print("Graph Data: ", graph_data)
+
+        # Step 4: Human-in-the-loop review
+        print("\n" + "=" * 50)
+        print("HUMAN REVIEW REQUIRED")
+        print("=" * 50)
+
+        # Create graph extractor instance for potential re-extraction
+        graph_extractor = ResumeGraphExtractionWorkflow(
+            model_id=provider_config.model,
+            api_key=provider_config.api_key_env,
+            base_url=provider_config.base_url,
+            additional_params=provider_config.additional_params or {},
+        )
+
+        user_approved = await cli_interface.review_extracted_triplets(
+            graph_data, formatted_content, graph_extractor
+        )
+
+        if not user_approved:
+            return {
+                "success": False,
+                "error": "User cancelled ingestion during review",
+                "resume_id": generate_resume_id(resume_path),
+                "user_cancelled": True,
+            }
+
+        # Step 5: Store in graph database (only if user approved)
+        storage_success = await store_resume_in_graph_db(
+            resume_path, graph_data, embedding_service=embedding_service
+        )
+
+        # Generate resume ID for reference
+        resume_id = generate_resume_id(resume_path)
+
+        return {
+            "success": True,
+            "resume_id": resume_id,
+            "raw_content_length": len(raw_content),
+            "formatted_content_length": len(formatted_content),
+            "entity_count": len(
+                {triplet.subject for triplet in graph_data.triplets}
+                | {triplet.object for triplet in graph_data.triplets}
+            ),
+            "triplet_count": len(graph_data.triplets),
+            "graph_stored": storage_success,
+            "validation_status": graph_data.validation_status,
+            "validation_message": graph_data.validation_message,
+            "formatted_content": formatted_content,
+            "graph_data": graph_data,
+            "user_approved": True,
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "resume_id": generate_resume_id(resume_path),
+        }
+
+
 async def complete_resume_ingestion_workflow(
     resume_path: str, provider_config: ProviderConfig
 ) -> dict:

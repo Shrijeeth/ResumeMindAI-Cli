@@ -1,3 +1,4 @@
+import re
 from textwrap import dedent
 from typing import Any, Dict, List, Optional
 
@@ -39,6 +40,10 @@ class ResumeGraphExtractionOutput(BaseModel):
     )
     validation_message: str = Field(
         description="Summary of the extraction process and any issues"
+    )
+    additional_extraction_requests: List[str] = Field(
+        default_factory=list,
+        description="Additional information requests from user during review",
     )
 
 
@@ -252,9 +257,247 @@ class ResumeGraphExtractionWorkflow:
             retries=3,
         )
 
+        # Dedicated team for additional extraction requests
+        self.additional_extraction_team = Team(
+            name="Additional Information Extraction Team",
+            model=self.model,
+            members=[
+                Agent(
+                    model=self.model,
+                    name="Focused Entity Hunter",
+                    role="Search for specific entities and information requested by user",
+                    instructions=dedent("""
+                        You are a focused entity hunter specialized in finding specific information in resumes.
+                        Your task is to search ONLY for the specific information requested by the user.
+
+                        Guidelines:
+                        - Focus EXCLUSIVELY on the user's specific requests
+                        - Extract ALL instances of the requested information, even if some may have been found before
+                        - Look for subtle mentions, implicit references, and related information
+                        - Be thorough but precise - only extract what's actually mentioned
+                        - Include obvious instances that might have been missed in general extraction
+                        - If the requested information is not found, clearly state so
+                        - Pay attention to context and ensure accuracy
+
+                        Entity Types to Consider:
+                        - CERTIFICATION: Professional certifications, licenses
+                        - PUBLICATION: Papers, articles, books, blogs
+                        - VOLUNTEER: Volunteer work, community service
+                        - AWARD: Awards, honors, recognitions
+                        - PROJECT: Personal projects not mentioned in work experience
+                        - COURSE: Additional courses, training programs
+                        - LANGUAGE: Programming or spoken languages
+                        - HOBBY: Personal interests and hobbies
+                        - PATENT: Patents filed or granted
+
+                        Output format: List each found entity with its type and context.
+                        If nothing is found, explicitly state "No [requested information] found in resume."
+                    """),
+                    markdown=True,
+                    retries=2,
+                ),
+                Agent(
+                    model=self.model,
+                    name="Specific Relationship Mapper",
+                    role="Create relationships for the specifically requested information",
+                    instructions=dedent("""
+                        You are a relationship mapper focused on creating triplets for specific user requests.
+                        Your task is to create meaningful relationships ONLY for the information found by the Entity Hunter.
+
+                        Relationship Types for Specific Requests:
+                        - HAS_CERTIFICATION: Person has Certification
+                        - PUBLISHED: Person published Publication
+                        - VOLUNTEERED_AT: Person volunteered at Organization
+                        - RECEIVED_AWARD: Person received Award
+                        - COMPLETED_COURSE: Person completed Course
+                        - SPEAKS_LANGUAGE: Person speaks Language
+                        - HAS_HOBBY: Person has Hobby
+                        - FILED_PATENT: Person filed Patent
+                        - PARTICIPATED_IN: Person participated in Activity
+
+                        Guidelines:
+                        - Only create relationships for information that was actually found
+                        - Ensure all relationships are factually grounded in the resume
+                        - Do not create speculative or assumed relationships
+                        - Include temporal information when available
+                        - Connect related entities appropriately
+
+                        Output format: List relationships as triplets (Subject, Predicate, Object)
+                        If no relationships can be created, state "No relationships found for requested information."
+                    """),
+                    markdown=True,
+                    retries=2,
+                ),
+                Agent(
+                    model=self.model,
+                    name="Focused Validator",
+                    role="Validate that extracted information matches user requests exactly",
+                    instructions=dedent("""
+                        You are a focused validator for specific extraction requests.
+                        Your task is to ensure that ONLY the requested information is extracted and nothing else.
+
+                        Validation Criteria:
+                        - Verify that all extracted information directly relates to user requests
+                        - Remove any general information that wasn't specifically requested
+                        - Ensure factual accuracy - information must be explicitly mentioned in resume
+                        - Check for completeness - did we find all instances of requested information?
+                        - Validate relationship accuracy and appropriateness
+
+                        Quality Checks:
+                        - Every triplet must be directly related to the user's specific request
+                        - Allow potential duplicates - deduplication will be handled later in the process
+                        - No speculative or inferred information
+                        - Proper entity typing for the specific domain requested
+                        - Clear and accurate descriptions
+                        - Prioritize completeness over avoiding duplicates
+
+                        Output the final validated triplets with explanations for any changes made.
+                        If no valid information is found, clearly state this result.
+                    """),
+                    markdown=True,
+                    retries=2,
+                ),
+            ],
+            instructions=dedent("""
+                You are the lead of a focused extraction team for specific user requests.
+                Your goal is to find and extract ONLY the specific information requested by the user.
+
+                Process:
+                1. Focused Entity Hunter searches for the specific requested information
+                2. Specific Relationship Mapper creates relationships only for found information
+                3. Focused Validator ensures accuracy and relevance to user requests
+
+                Key Responsibilities:
+                - Extract ALL instances of what the user specifically requested
+                - Be thorough and comprehensive - find everything related to the request
+                - Extract what's actually mentioned, even if it might overlap with previous extractions
+                - Provide clear feedback if requested information is not found
+                - Maintain high accuracy and factual grounding
+                - Prioritize completeness over avoiding potential duplicates
+
+                Final Output Requirements:
+                - List of triplets specifically related to user requests
+                - Clear indication if no information was found
+                - Quality assessment focused on request fulfillment
+            """),
+            add_name_to_context=True,
+            retries=2,
+        )
+
+    def _parse_resume_sections(self, formatted_resume: str) -> List[Dict[str, str]]:
+        """
+        Parse the formatted resume into distinct sections for better processing.
+
+        Args:
+            formatted_resume: Clean, formatted resume content in markdown format
+
+        Returns:
+            List of dictionaries with section_type, title, and content
+        """
+        sections = []
+        lines = formatted_resume.split("\n")
+        current_section = None
+        current_content = []
+        current_title = ""
+
+        # Common section headers (case-insensitive patterns)
+        section_patterns = {
+            r"(?i)^#+\s*(education|academic|qualifications?)": "education",
+            r"(?i)^#+\s*(experience|employment|work|career)": "experience",
+            r"(?i)^#+\s*(skills?|technical|competenc)": "skills",
+            r"(?i)^#+\s*(projects?|portfolio)": "projects",
+            r"(?i)^#+\s*(publications?|research|papers?)": "publications",
+            r"(?i)^#+\s*(contact|personal|info)": "contact",
+            r"(?i)^#+\s*(summary|objective|profile)": "summary",
+            r"(?i)^#+\s*(awards?|honors?|achievements?)": "awards",
+            r"(?i)^#+\s*(volunteer|community|service)": "volunteer",
+            r"(?i)^#+\s*(certifications?|licenses?)": "certifications",
+        }
+
+        for line in lines:
+            # Check if this line starts a new section
+            section_type = None
+
+            for pattern, stype in section_patterns.items():
+                if re.match(pattern, line.strip()):
+                    section_type = stype
+                    break
+
+            if section_type:
+                # Save previous section if it exists
+                if current_section and current_content:
+                    sections.append(
+                        {
+                            "section_type": current_section,
+                            "title": current_title,
+                            "content": "\n".join(current_content).strip(),
+                        }
+                    )
+
+                # Start new section
+                current_section = section_type
+                current_title = line.strip()
+                current_content = [line]
+            else:
+                # Add to current section content
+                if current_section:
+                    current_content.append(line)
+                else:
+                    # Handle content before first section (like header/contact info)
+                    if not current_section:
+                        current_section = "header"
+                        current_title = "Header Information"
+                        current_content = [line]
+
+        # Add the last section
+        if current_section and current_content:
+            sections.append(
+                {
+                    "section_type": current_section,
+                    "title": current_title,
+                    "content": "\n".join(current_content).strip(),
+                }
+            )
+
+        return sections
+
+    async def _process_section(self, section: Dict[str, str]) -> List[GraphTriplet]:
+        """
+        Process a single resume section with the existing graph extraction team.
+
+        Args:
+            section: Dictionary with section_type, title, and content
+
+        Returns:
+            List of GraphTriplet objects extracted from the section
+        """
+        section_message = dedent(f"""
+            Resume Section: {section["title"]}
+            Section Type: {section["section_type"]}
+
+            Content:
+            ```
+            {section["content"]}
+            ```
+
+            Focus on extracting information specifically from this {section["section_type"]} section.
+            Pay attention to the section context when creating relationships and entity types.
+            Ensure all extracted information is factually grounded in the section content.
+        """)
+
+        # Run the existing graph extraction team on this section
+        team_response = await self.graph_extraction_team.arun(input=section_message)
+
+        # Format the response into structured JSON
+        json_response = await self.json_formatter_agent.arun(
+            input=team_response.content
+        )
+
+        return json_response.content.triplets if json_response.content.triplets else []
+
     async def run(self, formatted_resume: str) -> ResumeGraphExtractionOutput:
         """
-        Extract graph triplets from a formatted resume.
+        Extract graph triplets from a formatted resume using section-based processing.
 
         Args:
             formatted_resume: Clean, formatted resume content in markdown format
@@ -262,21 +505,97 @@ class ResumeGraphExtractionWorkflow:
         Returns:
             ResumeGraphExtractionOutput containing triplets, and validation info
         """
+        # Parse resume into sections
+        sections = self._parse_resume_sections(formatted_resume)
+
+        print(f"📄 Parsed resume into {len(sections)} sections:")
+        for section in sections:
+            print(f"  - {section['section_type']}: {section['title']}")
+
+        # Process each section separately
+        all_triplets = []
+        section_results = {}
+
+        for section in sections:
+            print(f"\n🔄 Processing {section['section_type']} section...")
+
+            try:
+                section_triplets = await self._process_section(section)
+                all_triplets.extend(section_triplets)
+                section_results[section["section_type"]] = len(section_triplets)
+
+                print(
+                    f"✅ Extracted {len(section_triplets)} triplets from {section['section_type']}"
+                )
+
+            except Exception as e:
+                print(
+                    f"⚠️  Error processing {section['section_type']} section: {str(e)}"
+                )
+                section_results[section["section_type"]] = 0
+
+        # Create summary message
+        total_triplets = len(all_triplets)
+        summary_parts = [
+            f"Successfully processed {len(sections)} sections with {total_triplets} total triplets"
+        ]
+
+        for section_type, count in section_results.items():
+            summary_parts.append(f"{section_type}: {count} triplets")
+
+        validation_message = "; ".join(summary_parts)
+
+        print(
+            f"\n📊 Section-based extraction complete: {total_triplets} total triplets"
+        )
+
+        return ResumeGraphExtractionOutput(
+            triplets=all_triplets,
+            validation_status=True,
+            validation_message=validation_message,
+            additional_extraction_requests=[],
+        )
+
+    async def extract_additional_triplets(
+        self, formatted_resume: str, additional_requests: List[str]
+    ) -> List[GraphTriplet]:
+        """
+        Extract additional triplets based on specific user requests.
+
+        Args:
+            formatted_resume: Clean, formatted resume content in markdown format
+            additional_requests: List of specific information to extract
+
+        Returns:
+            List of additional GraphTriplet objects
+        """
+        if not additional_requests:
+            return []
+
+        requests_text = ", ".join(additional_requests)
         message = dedent(f"""
-            Resume Content in markdown format to be parsed:
+            Resume Content in markdown format:
 
             ```
             {formatted_resume}
             ```
+
+            SPECIFIC EXTRACTION REQUEST:
+            The user has specifically requested to extract information from resume content about: {requests_text}
+
+            Please focus ONLY on extracting triplets related to these specific requests.
+            Look carefully for any mentions, relationships, or entities related to: {requests_text}
+
+            If no information about these specific requests is found in the resume content, return an empty list.
         """)
 
-        # Run the graph extraction team
-        team_response = await self.graph_extraction_team.arun(input=message)
-        print(team_response.messages)
+        # Run the dedicated additional extraction team
+        team_response = await self.additional_extraction_team.arun(input=message)
 
         # Format the response into structured JSON
         json_response = await self.json_formatter_agent.arun(
             input=team_response.content
         )
 
-        return json_response.content
+        # Return only the triplets from the additional extraction
+        return json_response.content.triplets if json_response.content.triplets else []
