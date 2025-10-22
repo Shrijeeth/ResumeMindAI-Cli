@@ -174,12 +174,20 @@ class CommandHandler:
         # Display sample entities by type
         self.display.print("\n[bold]📊 Graph Summary:[/bold]")
 
-        # Group entities by type
+        # Group entities by type (extracted from triplets)
         entities_by_type = {}
-        for entity_name, entity_type in graph_data.entities.items():
-            if entity_type not in entities_by_type:
-                entities_by_type[entity_type] = []
-            entities_by_type[entity_type].append(entity_name)
+        for triplet in graph_data.triplets:
+            # Add subject entity
+            if triplet.subject_type not in entities_by_type:
+                entities_by_type[triplet.subject_type] = []
+            if triplet.subject not in entities_by_type[triplet.subject_type]:
+                entities_by_type[triplet.subject_type].append(triplet.subject)
+
+            # Add object entity
+            if triplet.object_type not in entities_by_type:
+                entities_by_type[triplet.object_type] = []
+            if triplet.object not in entities_by_type[triplet.object_type]:
+                entities_by_type[triplet.object_type].append(triplet.object)
 
         # Display top entity types
         for entity_type, entities in list(entities_by_type.items())[:5]:

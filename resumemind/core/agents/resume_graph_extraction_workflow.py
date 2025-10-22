@@ -260,7 +260,7 @@ class ResumeGraphExtractionWorkflow:
             formatted_resume: Clean, formatted resume content in markdown format
 
         Returns:
-            ResumeGraphExtractionOutput containing triplets, entities, and validation info
+            ResumeGraphExtractionOutput containing triplets, and validation info
         """
         message = dedent(f"""
             Resume Content in markdown format to be parsed:
@@ -272,12 +272,11 @@ class ResumeGraphExtractionWorkflow:
 
         # Run the graph extraction team
         team_response = await self.graph_extraction_team.arun(input=message)
-        print(team_response.content)
+        print(team_response.messages)
 
         # Format the response into structured JSON
         json_response = await self.json_formatter_agent.arun(
             input=team_response.content
         )
-        print(json_response.content)
 
         return json_response.content

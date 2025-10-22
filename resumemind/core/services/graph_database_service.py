@@ -81,7 +81,6 @@ class GraphDatabaseService:
         self,
         resume_id: str,
         graph_data: ResumeGraphExtractionOutput,
-        entity_embeddings: Optional[Dict[str, List[float]]] = None,
         triplet_subject_embeddings: Optional[Dict[int, List[float]]] = None,
         triplet_object_embeddings: Optional[Dict[int, List[float]]] = None,
         triplet_relationship_embeddings: Optional[Dict[int, List[float]]] = None,
@@ -92,6 +91,9 @@ class GraphDatabaseService:
         Args:
             resume_id: Unique identifier for the resume
             graph_data: Extracted graph data from the workflow
+            triplet_subject_embeddings: Optional embeddings for triplet subjects
+            triplet_object_embeddings: Optional embeddings for triplet objects
+            triplet_relationship_embeddings: Optional embeddings for relationships
 
         Returns:
             True if successful, False otherwise
@@ -100,24 +102,52 @@ class GraphDatabaseService:
             return False
 
         try:
-            # First, create all entities as nodes with embeddings and descriptions
+            # Extract unique entities from triplets
+            entities = {}
+            for i, triplet in enumerate(graph_data.triplets):
+                # Add subject entity
+                entities[triplet.subject] = {
+                    "type": triplet.subject_type,
+                    "description": triplet.subject_description,
+                    "embedding_idx": i,  # Use triplet index for subject embedding
+                }
+                # Add object entity
+                entities[triplet.object] = {
+                    "type": triplet.object_type,
+                    "description": triplet.object_description,
+                    "embedding_idx": i,  # Use triplet index for object embedding
+                }
+
+            # Create all entities as nodes with embeddings and descriptions
             entity_queries = []
-            for entity_name, entity_type in graph_data.entities.items():
+            for entity_name, entity_data in entities.items():
                 # Escape quotes and special characters
                 safe_name = entity_name.replace("'", "\\'").replace('"', '\\"')
-                safe_type = entity_type.replace("'", "\\'").replace('"', '\\"')
+                safe_type = entity_data["type"].replace("'", "\\'").replace('"', '\\"')
+                safe_description = (
+                    entity_data["description"].replace("'", "\\'").replace('"', '\\"')
+                )
 
                 # Escape entity type for use as Cypher label (handle spaces and special chars)
-                safe_label = f"`{entity_type.replace('`', '``')}`"
+                safe_label = f"`{entity_data['type'].replace('`', '``')}`"
 
-                # Get entity description and embedding
-                description = graph_data.entity_descriptions.get(entity_name, "")
-                safe_description = description.replace("'", "\\'").replace('"', '\\"')
-
-                # Serialize embedding as JSON string for storage
+                # Get embedding based on whether this entity is a subject or object
                 embedding_json = "null"
-                if entity_embeddings and entity_name in entity_embeddings:
-                    embedding = entity_embeddings[entity_name]
+                embedding_idx = entity_data["embedding_idx"]
+
+                # Try subject embedding first, then object embedding
+                if (
+                    triplet_subject_embeddings
+                    and embedding_idx in triplet_subject_embeddings
+                ):
+                    embedding = triplet_subject_embeddings[embedding_idx]
+                    if embedding:
+                        embedding_json = f"'{json.dumps(embedding)}'"
+                elif (
+                    triplet_object_embeddings
+                    and embedding_idx in triplet_object_embeddings
+                ):
+                    embedding = triplet_object_embeddings[embedding_idx]
                     if embedding:
                         embedding_json = f"'{json.dumps(embedding)}'"
 
@@ -181,16 +211,18 @@ class GraphDatabaseService:
                 await self.graph.query(query)
 
             # Store metadata about the resume
+            safe_validation_message = graph_data.validation_message.replace(
+                "'", "\\'"
+            ).replace('"', '\\"')
             metadata_query = f"""
             MERGE (r:Resume {{
                 id: '{resume_id}',
-                entity_count: {len(graph_data.entities)},
+                entity_count: {len(entities)},
                 triplet_count: {len(graph_data.triplets)},
                 validation_status: {str(graph_data.validation_status).lower()},
-                validation_message: '{graph_data.validation_message}'
+                validation_message: '{safe_validation_message}'
             }})
             """
-            metadata_query = metadata_query.replace("'", "'")
             await self.graph.query(metadata_query)
 
             return True

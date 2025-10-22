@@ -223,16 +223,6 @@ class EmbeddingService:
         # Use shorter context to avoid token limits
         # short_context = resume_content[:200] if resume_content else ""
 
-        # Add entity descriptions (keep them concise)
-        for entity_name, entity_description in graph_data.entity_descriptions.items():
-            # Create focused text for embedding (limit description length)
-            description = (
-                entity_description[:300] if entity_description else entity_name
-            )
-            entity_text = f"{entity_name}: {description}"
-            texts_to_embed.append(entity_text)
-            text_mappings[len(texts_to_embed) - 1] = ("entity", entity_name)
-
         # Add triplet descriptions (more concise)
         for i, triplet in enumerate(graph_data.triplets):
             # Subject description (concise)
@@ -278,9 +268,7 @@ class EmbeddingService:
             if idx in text_mappings:
                 mapping_type, mapping_id = text_mappings[idx]
 
-                if mapping_type == "entity":
-                    entity_embeddings[mapping_id] = embedding
-                elif mapping_type == "triplet_subject":
+                if mapping_type == "triplet_subject":
                     triplet_subject_embeddings[mapping_id] = embedding
                 elif mapping_type == "triplet_object":
                     triplet_object_embeddings[mapping_id] = embedding

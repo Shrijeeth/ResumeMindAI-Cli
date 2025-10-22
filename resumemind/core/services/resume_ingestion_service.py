@@ -106,15 +106,11 @@ async def store_resume_in_graph_db(
         await graph_db_service.create_indexes()
 
         # Get embeddings from embedding service if available
-        entity_embeddings = None
         triplet_subject_embeddings = None
         triplet_object_embeddings = None
         triplet_relationship_embeddings = None
 
         if embedding_service:
-            entity_embeddings = getattr(
-                embedding_service, "last_entity_embeddings", None
-            )
             triplet_subject_embeddings = getattr(
                 embedding_service, "last_triplet_subject_embeddings", None
             )
@@ -129,7 +125,6 @@ async def store_resume_in_graph_db(
         success = await graph_db_service.store_resume_graph(
             resume_id,
             graph_data,
-            entity_embeddings,
             triplet_subject_embeddings,
             triplet_object_embeddings,
             triplet_relationship_embeddings,
@@ -204,7 +199,10 @@ async def complete_resume_ingestion_workflow(
             "resume_id": resume_id,
             "raw_content_length": len(raw_content),
             "formatted_content_length": len(formatted_content),
-            "entity_count": len(graph_data.entities),
+            "entity_count": len(
+                {triplet.subject for triplet in graph_data.triplets}
+                | {triplet.object for triplet in graph_data.triplets}
+            ),
             "triplet_count": len(graph_data.triplets),
             "graph_stored": storage_success,
             "validation_status": graph_data.validation_status,
