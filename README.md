@@ -1,185 +1,213 @@
 # ResumeMindAI CLI
 
-AI-powered resume analysis and optimization tool with GraphRAG capabilities, persistent provider management, and multi-provider embedding support.
+AI-powered resume analysis tool built for IT professionals, freelancers, and consultants. Transform your resume into structured knowledge graphs using GraphRAG technology with multi-provider LLM support.
 
-## Features
+## What It Does
+
+ResumeMindAI CLI converts your resume into a **structured knowledge graph** that captures entities (skills, companies, projects) and their semantic relationships. This enables intelligent analysis and optimization of your professional profile.
+
+## Core Features
+
+### 📄 Resume Processing Pipeline
+
+- **Document Parsing**: Supports PDF, DOCX, DOC, and TXT files
+- **AI-Powered Cleaning**: Standardizes and formats resume content
+- **Section-Based Analysis**: Processes education, experience, skills, projects separately for better accuracy
+- **Human-in-the-Loop**: Interactive review system to validate and refine extracted data
 
 ### 🧠 GraphRAG & Vector Embeddings
-- **🔍 Semantic Search**: Vector-based similarity search across resume entities and relationships
-- **📊 Knowledge Graphs**: Convert resumes into structured graph databases with FalkorDB
-- **🎯 Multi-Provider Embeddings**: Support for OpenAI, Ollama, Google, and custom embedding models
-- **💡 Intelligent Matching**: Context-aware candidate matching and skill analysis
 
-### 🔄 Provider Management
-- **🚀 Smart Startup**: Automatically loads your active provider on startup
-- **🎨 Rich Interactive UI**: Beautiful terminal interface with provider tables and management menus
-- **🤖 Agent-Ready**: Clean API for programmatic provider management
-- **🔧 Universal LLM Support**: Any model supported by LiteLLM (OpenAI, Anthropic, Google, Ollama, etc.)
-- **💾 SQLite Persistence**: Providers persist across application restarts
-- **🔒 Secure Storage**: API keys and configurations stored locally
+- **Knowledge Graph Creation**: Converts resumes into structured graph databases with FalkorDB
+- **Semantic Relationships**: Captures connections between skills, experiences, and achievements
+- **Vector Embeddings**: Multi-provider support (OpenAI, Ollama, Google) for semantic search
+- **Intelligent Querying**: Search and analyze your professional data semantically
 
-### 🌐 Flexible Deployment
-- **☁️ Cloud & Local**: Mix and match cloud LLMs with local embeddings
-- **💰 Cost Optimization**: Use free Ollama embeddings with premium LLMs
-- **🔐 Privacy First**: Complete offline operation with Ollama
-- **⚡ Performance**: Batch processing and intelligent caching
+### 🤖 Multi-Provider LLM Support
 
-## Installation
+- **Universal Compatibility**: Works with OpenAI, Anthropic, Google Gemini, Ollama, and 100+ models via LiteLLM
+- **Persistent Configuration**: Save multiple provider setups and switch between them seamlessly
+- **Smart Startup**: Automatically loads your active provider on startup
+- **Local & Cloud**: Mix cloud LLMs with local embeddings for cost optimization
+- **Privacy First**: Complete offline operation possible with Ollama
+- **Rich CLI Interface**: Beautiful terminal UI with interactive menus and tables
 
-1. Clone the repository:
+### 🎯 Built For Professionals
+
+- **IT Professionals**: Analyze technical skills, project portfolios, and career progression
+- **Freelancers**: Understand expertise positioning and identify skill gaps
+- **Consultants**: Optimize professional profiles for client presentations
+- **Job Seekers**: Prepare for interviews with structured skill analysis
+- **Career Development**: Make data-driven decisions about your professional growth
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.8+
+- Docker (for FalkorDB graph database)
+
+### Installation
+
+1. **Clone the repository:**
 
 ```bash
 git clone <repository-url>
 cd ResumeMindAI-Cli
 ```
 
-1. Install dependencies:
+2. **Install dependencies:**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Usage
+3. **Start the graph database:**
 
-### First Run
+```bash
+docker-compose up -d
+```
 
-When you run the application for the first time:
+4. **Run the application:**
 
 ```bash
 python main.py
 ```
 
-You'll be prompted to create your first provider:
+## How It Works
 
-1. Enter a custom name for your provider (e.g., "My GPT-4")
-2. Specify the LLM model (e.g., `gpt-4o`, `claude-3-5-sonnet-20241022`, `ollama/llama3.2`)
-3. Enter API key (if required)
-4. Set base URL (if needed, e.g., for Ollama: `http://localhost:11434`)
-5. Configure embedding model (optional - auto-selected based on LLM if empty)
-6. Set embedding credentials (optional - uses LLM credentials if empty)
+### The Resume → Graph Pipeline
 
-### Subsequent Runs
+1. **📄 Upload Resume**: Supports PDF, DOCX, DOC, TXT formats
+2. **🧹 AI Cleaning**: Standardizes and formats content using LLM
+3. **📊 Section Parsing**: Automatically detects education, experience, skills, projects
+4. **🧠 Graph Extraction**: AI agents extract entities and relationships
+5. **👤 Human Review**: Interactive validation and refinement of extracted data
+6. **🔢 Vector Embeddings**: Generate semantic embeddings for search
+7. **💾 Graph Storage**: Store in FalkorDB for querying and analysis
 
-The application will automatically load your active provider and start the main menu:
+### First Time Setup
+
+On your first run, you'll configure an LLM provider:
+
+- **Provider Name**: Custom name (e.g., "My GPT-4", "Local Ollama")
+- **Model**: Any LiteLLM-supported model (`gpt-4o`, `claude-3-5-sonnet-20241022`, `ollama/llama3.2`)
+- **API Key**: Required for cloud providers, optional for local models
+- **Base URL**: Optional (e.g., `http://localhost:11434` for Ollama)
+- **Embedding Model**: Auto-selected or custom (e.g., `text-embedding-3-small`, `ollama/nomic-embed-text`)
+
+### Main Menu Options
+
+After setup, you'll see the main menu:
 
 ```text
 🎯 ResumeMindAI - Main Menu
-1. 📄 Resume Ingestion
-2. 🤖 Manage Providers  
+1. 📄 Resume Ingestion - Process and analyze your resume
+2. 🤖 Manage Providers - Add, switch, or configure LLM providers
 3. ❌ Exit
 ```
 
-### Provider Management
+### Resume Ingestion Process
 
-Select "🤖 Manage Providers" to:
+1. **Select Resume File**: Choose your PDF, DOCX, or TXT resume
+2. **AI Processing**: Watch as the system processes each section
+3. **Review Extracted Data**: Validate triplets (relationships) found in your resume
+4. **Refine Results**: Add missing information or remove incorrect data
+5. **Graph Storage**: Approve final results for storage in the knowledge graph
 
-- ➕ **Add new providers**: Create additional provider configurations
-- 🎯 **Set active provider**: Switch which provider is currently active
-- ⭐ **Set default provider**: Choose your preferred fallback provider
-- 🗑️ **Delete providers**: Remove unused provider configurations
-- 📋 **View all providers**: See all saved providers with status indicators
+The human-in-the-loop review ensures accuracy - you have full control over what gets stored.
 
-## Supported Providers
+## Tech Stack & Architecture
 
-ResumeMindAI CLI supports **any model compatible with LiteLLM**. Here are some popular examples:
+### Core Technologies
 
-### OpenAI Models
+- **Python**: Main application language
+- **LiteLLM**: Unified interface for 100+ LLM providers
+- **FalkorDB**: Graph database for storing resume relationships
+- **Rich**: Beautiful terminal UI with tables and interactive prompts
+- **Agno**: AI agent framework for resume processing workflows
+- **MarkItDown**: Document parsing for PDF, DOCX, and other formats
+- **SQLite**: Local persistence for provider configurations
 
-```text
-gpt-4o
-gpt-4
-gpt-4-turbo
-gpt-3.5-turbo
-```
+### Supported LLM Providers
 
-### Anthropic Claude Models
+**Cloud Providers:**
 
-```text
-claude-3-5-sonnet-20241022
-claude-3-opus-20240229
-claude-3-sonnet-20240229
-claude-3-haiku-20240307
-```
+- OpenAI: `gpt-4o`, `gpt-4`, `gpt-3.5-turbo`
+- Anthropic: `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`
+- Google: `gemini/gemini-1.5-pro`, `gemini/gemini-pro`
+- Azure OpenAI, Cohere, Perplexity, Together AI, and 100+ more
 
-### Google Gemini Models
+**Local Models (Ollama):**
 
-```text
-gemini/gemini-1.5-pro
-gemini/gemini-pro
-gemini/gemini-1.5-flash
-```
+- `ollama/llama3.2`, `ollama/llama3.1`, `ollama/mistral`, `ollama/codellama`
 
-### Ollama (Local Models)
+### Architecture Benefits
 
-```text
-ollama/llama3.2
-ollama/llama3.1
-ollama/mistral
-ollama/codellama
-ollama/qwen2.5
-```
+- **Privacy First**: All data stored locally, no external dependencies except LLM APIs
+- **Modular Design**: Clean separation between CLI, agents, services, and persistence
+- **Extensible**: Easy to add new agents and processing workflows
+- **Cost Flexible**: Mix expensive cloud LLMs with free local embeddings
 
-### Other Providers
+## Future Roadmap
 
-- **Azure OpenAI**: `azure/gpt-4`
-- **Cohere**: `cohere/command-r-plus`
-- **Perplexity**: `perplexity/llama-3.1-sonar-large-128k-online`
-- **Together AI**: `together_ai/meta-llama/Llama-2-70b-chat-hf`
-- **And many more**: Any provider supported by LiteLLM
+### Planned AI Agents
 
-## Data Storage
+The current v1 focuses on resume → graph conversion. Future versions will add specialized agents:
 
-### Provider Persistence
+- **🎯 Interview Prep Agent**: Generate technical questions based on your extracted skills and experience
+- **📊 Skills Gap Analyzer**: Compare your profile against job requirements and market trends  
+- **💼 Portfolio Optimizer**: Suggest improvements to your projects and achievements
+- **🚀 Career Path Predictor**: Recommend next career moves based on your background
+- **📈 Market Position Analyzer**: Compare your profile against industry standards
+- **📝 Resume Optimizer**: Suggest improvements to resume content and structure
 
-- **Database Location**: `~/.resumemind/providers.db` (SQLite)
-- **Stored Data**: Provider configurations, model names, API keys, base URLs
-- **Security**: All data stored locally on your machine
+### Web Interface (Coming Soon)
 
-### API Keys
+While v1 is CLI-focused, a web interface is planned for future releases with:
 
-- API keys are stored securely in the local SQLite database
-- Keys are only accessible from your local machine
-- No data is sent to external services except for LLM API calls
+- Visual graph exploration
+- Interactive resume editing
+- Dashboard analytics
+- Collaborative features
 
-## Architecture
+### Contributing
 
-### Core Components
+We welcome contributions! The modular architecture makes it easy to add new agents and features. Check the `resumemind/core/agents/` directory for examples.
 
-- **`resumemind/core/persistence/`**: SQLite-based persistence layer
-  - `models.py`: Database models and data conversion utilities
-  - `service.py`: Thread-safe singleton service for database operations
-- **`resumemind/core/providers/`**: Provider management system
-  - `manager.py`: Rich UI for interactive provider management
-  - `registry.py`: LiteLLM configuration utilities
-  - `config.py`: Provider configuration data classes
-- **`resumemind/core/cli/`**: Command-line interface
-  - `interface.py`: User interaction and input validation
-  - `commands.py`: Business logic and workflow orchestration
+## Data Privacy & Security
 
-### Agent Integration
+- **Local Storage**: All resume data and configurations stored locally
+- **No Data Collection**: No telemetry or data sent to external services
+- **API Key Security**: Credentials stored securely in local SQLite database
+- **Open Source**: Full transparency - audit the code yourself
 
-For programmatic access, use the `ProviderStateService`:
+## License
 
-```python
-from resumemind.core.persistence import ProviderStateService
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
-# Initialize service
-service = ProviderStateService()
+### Apache License 2.0
 
-# Save a provider
-provider_id = service.save_provider(config, is_active=True)
+ResumeMindAI CLI is free and open-source software that allows you to:
 
-# Get active provider
-active_provider = service.get_active_provider()
+- ✅ **Use** the software for any purpose
+- ✅ **Modify** the source code
+- ✅ **Distribute** copies of the software
+- ✅ **Distribute** modified versions
+- ✅ **Use** for commercial purposes
 
-# Get provider config for LiteLLM
-config, litellm_config = service.get_provider_config_and_litellm(provider_id)
-```
+**Requirements:**
 
-## Dependencies
+- Include the original copyright notice and license
+- State any significant changes made to the software
 
-- **`litellm`**: Unified LLM interface supporting 100+ models
-- **`rich`**: Beautiful terminal UI with tables and interactive prompts
-- **`agno`**: AI agent framework for resume processing workflows
-- **`falkordb`**: Graph database for resume data storage
-- **`markitdown`**: Document parsing for PDF, DOCX, and other formats
+**No Warranty:** The software is provided "as is" without warranty of any kind.
+
+## Support
+
+- **Issues**: Report bugs and feature requests on GitHub
+- **Discussions**: Join the community for questions and ideas
+- **Documentation**: Full API docs available in the codebase
+
+---
+
+**Built for developers, by developers. Transform your resume analysis workflow with AI-powered insights.**
