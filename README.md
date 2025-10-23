@@ -67,6 +67,8 @@ pip install -r requirements.txt
 docker-compose up -d
 ```
 
+This starts FalkorDB with web interface accessible at `http://localhost:3010`
+
 4. **Run the application:**
 
 ```bash
@@ -113,8 +115,18 @@ After setup, you'll see the main menu:
 3. **Review Extracted Data**: Validate triplets (relationships) found in your resume
 4. **Refine Results**: Add missing information or remove incorrect data
 5. **Graph Storage**: Approve final results for storage in the knowledge graph
+6. **🌐 View Graph**: Access FalkorDB web interface at `http://localhost:3010` to explore your resume graph visually
 
 The human-in-the-loop review ensures accuracy - you have full control over what gets stored.
+
+### 🔍 Exploring Your Resume Graph
+
+After processing your resume, you can visualize and query your knowledge graph:
+
+- **Web Interface**: Open `http://localhost:3010` in your browser
+- **Visual Exploration**: See entities (skills, companies, projects) and their relationships
+- **Graph Queries**: Run Cypher queries to analyze your professional data
+- **Interactive Navigation**: Click through connected nodes to explore relationships
 
 ## Tech Stack & Architecture
 
@@ -155,7 +167,7 @@ The human-in-the-loop review ensures accuracy - you have full control over what 
 The current v1 focuses on resume → graph conversion. Future versions will add specialized agents:
 
 - **🎯 Interview Prep Agent**: Generate technical questions based on your extracted skills and experience
-- **📊 Skills Gap Analyzer**: Compare your profile against job requirements and market trends  
+- **📊 Skills Gap Analyzer**: Compare your profile against job requirements and market trends
 - **💼 Portfolio Optimizer**: Suggest improvements to your projects and achievements
 - **🚀 Career Path Predictor**: Recommend next career moves based on your background
 - **📈 Market Position Analyzer**: Compare your profile against industry standards
