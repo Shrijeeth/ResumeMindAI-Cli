@@ -10,9 +10,12 @@ sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 # Get the project root directory
 project_root = Path.cwd()
 
-# Get litellm package location
+# Get package locations
 import litellm
 litellm_path = Path(litellm.__file__).parent
+
+import magika
+magika_path = Path(magika.__file__).parent
 
 block_cipher = None
 
@@ -32,6 +35,8 @@ a = Analysis(
         (str(litellm_path / 'litellm_core_utils' / 'tokenizers'), 'litellm/litellm_core_utils/tokenizers'),
         (str(litellm_path / 'cost.json'), 'litellm'),
         (str(litellm_path / 'model_prices_and_context_window_backup.json'), 'litellm'),
+        # Include magika model files
+        (str(magika_path / 'models'), 'magika/models'),
     ],
     collect_data_files=[
         'tiktoken_ext.openai_public',
