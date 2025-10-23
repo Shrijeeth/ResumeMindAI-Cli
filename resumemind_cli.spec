@@ -35,8 +35,9 @@ a = Analysis(
         (str(litellm_path / 'litellm_core_utils' / 'tokenizers'), 'litellm/litellm_core_utils/tokenizers'),
         (str(litellm_path / 'cost.json'), 'litellm'),
         (str(litellm_path / 'model_prices_and_context_window_backup.json'), 'litellm'),
-        # Include magika model files
+        # Include magika model and config files
         (str(magika_path / 'models'), 'magika/models'),
+        (str(magika_path / 'config'), 'magika/config'),
     ],
     collect_data_files=[
         'tiktoken_ext.openai_public',
