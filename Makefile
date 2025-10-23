@@ -25,4 +25,7 @@ dev-install:
 	python -m pip install -r requirements.txt
 	python -m pip install ruff pytest
 
+build-executable:
+	python build_executable.py
+
 .PHONY: format lint check install run clean test dev-install

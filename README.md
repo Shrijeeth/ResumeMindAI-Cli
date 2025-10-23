@@ -39,14 +39,36 @@ ResumeMindAI CLI converts your resume into a **structured knowledge graph** that
 - **Job Seekers**: Prepare for interviews with structured skill analysis
 - **Career Development**: Make data-driven decisions about your professional growth
 
-## Quick Start
+## Installation Options
 
-### Prerequisites
+### 🚀 Option 1: Download Executable (Recommended)
+
+**No Python installation required!** Download the pre-built executable for your platform:
+
+- **Windows**: [Download resumemind-cli-windows-x64.zip](../../releases/latest)
+- **macOS**: [Download resumemind-cli-macos-x64.tar.gz](../../releases/latest)
+- **Linux**: [Download resumemind-cli-linux-x64.tar.gz](../../releases/latest)
+
+#### Quick Setup
+
+1. **Download** the appropriate file for your operating system
+2. **Extract** the archive to your desired location
+3. **Run the installer** (optional but recommended):
+   - Windows: Double-click `install.bat`
+   - macOS/Linux: Run `./install.sh` in terminal
+4. **Start FalkorDB**: Run `docker-compose up -d` in the extracted folder
+5. **Launch**: Run `resumemind-cli` from anywhere (if installed) or `./resumemind-cli` from the extracted folder
+
+### 🛠️ Option 2: Install from Source
+
+**For developers and advanced users:**
+
+#### Prerequisites
 
 - Python 3.8+
 - Docker (for FalkorDB graph database)
 
-### Installation
+#### Installation Steps
 
 1. **Clone the repository:**
 
@@ -73,6 +95,16 @@ This starts FalkorDB with web interface accessible at `http://localhost:3010`
 
 ```bash
 python main.py
+```
+
+#### Building Your Own Executable
+
+```bash
+# Install build dependencies
+pip install -r requirements.txt
+
+# Build executable for your platform
+python build_executable.py
 ```
 
 ## How It Works
