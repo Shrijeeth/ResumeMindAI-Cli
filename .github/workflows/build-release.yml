@@ -42,22 +42,31 @@ jobs:
       run: |
         python build_executable.py
 
+    - name: Find release directory
+      id: find_release
+      shell: bash
+      run: |
+        # Find the actual release directory created
+        RELEASE_DIR=$(ls -d release/*/ | head -n 1 | xargs basename)
+        echo "release_dir=$RELEASE_DIR" >> $GITHUB_OUTPUT
+        echo "Found release directory: $RELEASE_DIR"
+
     - name: Create archive (Linux/macOS)
       if: matrix.os != 'windows-latest'
       run: |
-        cd release/${{ matrix.platform }}-${{ matrix.arch }}
-        tar -czf ../../resumemind-cli-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz *
+        cd release/${{ steps.find_release.outputs.release_dir }}
+        tar -czf ../../resumemind-cli-${{ steps.find_release.outputs.release_dir }}.tar.gz *
 
     - name: Create archive (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        cd release/${{ matrix.platform }}-${{ matrix.arch }}
-        7z a ../../resumemind-cli-${{ matrix.platform }}-${{ matrix.arch }}.zip *
+        cd release/${{ steps.find_release.outputs.release_dir }}
+        7z a ../../resumemind-cli-${{ steps.find_release.outputs.release_dir }}.zip *
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: resumemind-cli-${{ matrix.platform }}-${{ matrix.arch }}
+        name: resumemind-cli-${{ steps.find_release.outputs.release_dir }}
         path: |
           *.tar.gz
           *.zip
