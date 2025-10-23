@@ -220,7 +220,6 @@ class CommandHandler:
 
     async def handle_provider_management(self):
         """Handle provider management workflow"""
-        self.display.print("\n[bold cyan]🤖 Provider Management[/bold cyan]")
 
         result = self.interface.show_provider_management_menu()
         if result:

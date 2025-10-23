@@ -1,5 +1,7 @@
 # ResumeMindAI CLI
 
+<a href="https://www.producthunt.com/posts/resume-mind-ai-cli" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1030149" alt="Product Hunt" width="150" /></a>
+
 AI-powered resume analysis tool built for IT professionals, freelancers, and consultants. Transform your resume into structured knowledge graphs using GraphRAG technology with multi-provider LLM support.
 
 ## What It Does
