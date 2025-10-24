@@ -7,6 +7,8 @@ from resumemind.core.agents.resume_cleaning_workflow import ResumeCleaningWorkfl
 from resumemind.core.agents.resume_graph_extraction_workflow import (
     ResumeGraphExtractionWorkflow,
 )
+from resumemind.core.persistence.resume_models import ResumeDataModel
+from resumemind.core.persistence.resume_storage_service import ResumeStorageService
 from resumemind.core.providers.config import ProviderConfig
 from resumemind.core.services.embedding_service import (
     create_embedding_service_from_provider,
@@ -174,14 +176,30 @@ async def complete_resume_ingestion_workflow_with_human_review(
     Returns:
         Dictionary with workflow results and statistics
     """
+    # Initialize storage service
+    storage_service = ResumeStorageService()
+    resume_model = None
+
     try:
         # Step 1: Read resume
         raw_content = await read_resume(resume_path)
 
-        # Step 2: Clean and format resume
+        # Step 2: Store raw content in database immediately
+        resume_id = generate_resume_id(resume_path)
+        resume_model = ResumeDataModel.from_file_data(
+            file_path=resume_path, raw_content=raw_content, resume_id=resume_id
+        )
+        resume_model = storage_service.save_resume(resume_model)
+        print(f"✅ Resume data saved to database (ID: {resume_model.resume_id})")
+
+        # Step 3: Clean and format resume
         formatted_content = await process_resume_content(raw_content, provider_config)
 
-        # Step 3: Extract graph relationships
+        # Update with cleaned content
+        resume_model.cleaned_content = formatted_content
+        resume_model = storage_service.save_resume(resume_model)
+
+        # Step 4: Extract graph relationships
         graph_data, embedding_service = await extract_resume_graph(
             formatted_content, provider_config
         )
@@ -204,10 +222,17 @@ async def complete_resume_ingestion_workflow_with_human_review(
         )
 
         if not user_approved:
+            # Mark as failed in database
+            if resume_model:
+                resume_model.mark_failed("User cancelled ingestion during review")
+                storage_service.save_resume(resume_model)
+
             return {
                 "success": False,
                 "error": "User cancelled ingestion during review",
-                "resume_id": generate_resume_id(resume_path),
+                "resume_id": resume_model.resume_id
+                if resume_model
+                else generate_resume_id(resume_path),
                 "user_cancelled": True,
             }
 
@@ -216,12 +241,20 @@ async def complete_resume_ingestion_workflow_with_human_review(
             resume_path, graph_data, embedding_service=embedding_service
         )
 
-        # Generate resume ID for reference
-        resume_id = generate_resume_id(resume_path)
+        # Mark as completed in database
+        if resume_model and storage_success:
+            resume_model.mark_completed()
+            storage_service.save_resume(resume_model)
+            print("✅ Resume ingestion completed and marked in database")
+        elif resume_model:
+            resume_model.mark_failed("Graph database storage failed")
+            storage_service.save_resume(resume_model)
 
         return {
             "success": True,
-            "resume_id": resume_id,
+            "resume_id": resume_model.resume_id
+            if resume_model
+            else generate_resume_id(resume_path),
             "raw_content_length": len(raw_content),
             "formatted_content_length": len(formatted_content),
             "entity_count": len(
@@ -238,10 +271,17 @@ async def complete_resume_ingestion_workflow_with_human_review(
         }
 
     except Exception as e:
+        # Mark as failed in database
+        if resume_model:
+            resume_model.mark_failed(str(e))
+            storage_service.save_resume(resume_model)
+
         return {
             "success": False,
             "error": str(e),
-            "resume_id": generate_resume_id(resume_path),
+            "resume_id": resume_model.resume_id
+            if resume_model
+            else generate_resume_id(resume_path),
         }
 
 
@@ -258,29 +298,53 @@ async def complete_resume_ingestion_workflow(
     Returns:
         Dictionary with workflow results and statistics
     """
+    # Initialize storage service
+    storage_service = ResumeStorageService()
+    resume_model = None
+
     try:
         # Step 1: Read resume
         raw_content = await read_resume(resume_path)
 
-        # Step 2: Clean and format resume
+        # Step 2: Store raw content in database immediately
+        resume_id = generate_resume_id(resume_path)
+        resume_model = ResumeDataModel.from_file_data(
+            file_path=resume_path, raw_content=raw_content, resume_id=resume_id
+        )
+        resume_model = storage_service.save_resume(resume_model)
+        print(f"✅ Resume data saved to database (ID: {resume_model.resume_id})")
+
+        # Step 3: Clean and format resume
         formatted_content = await process_resume_content(raw_content, provider_config)
 
-        # Step 3: Extract graph relationships
+        # Update with cleaned content
+        resume_model.cleaned_content = formatted_content
+        resume_model = storage_service.save_resume(resume_model)
+
+        # Step 4: Extract graph relationships
         graph_data, embedding_service = await extract_resume_graph(
             formatted_content, provider_config
         )
 
-        # Step 4: Store in graph database
+        # Step 5: Store in graph database
         storage_success = await store_resume_in_graph_db(
             resume_path, graph_data, embedding_service=embedding_service
         )
 
-        # Generate resume ID for reference
-        resume_id = generate_resume_id(resume_path)
+        # Mark as completed in database
+        if resume_model and storage_success:
+            resume_model.mark_completed()
+            storage_service.save_resume(resume_model)
+            print("✅ Resume ingestion completed and marked in database")
+        elif resume_model:
+            resume_model.mark_failed("Graph database storage failed")
+            storage_service.save_resume(resume_model)
 
         return {
             "success": True,
-            "resume_id": resume_id,
+            "resume_id": resume_model.resume_id
+            if resume_model
+            else generate_resume_id(resume_path),
             "raw_content_length": len(raw_content),
             "formatted_content_length": len(formatted_content),
             "entity_count": len(
@@ -296,8 +360,15 @@ async def complete_resume_ingestion_workflow(
         }
 
     except Exception as e:
+        # Mark as failed in database
+        if resume_model:
+            resume_model.mark_failed(str(e))
+            storage_service.save_resume(resume_model)
+
         return {
             "success": False,
             "error": str(e),
-            "resume_id": generate_resume_id(resume_path),
+            "resume_id": resume_model.resume_id
+            if resume_model
+            else generate_resume_id(resume_path),
         }

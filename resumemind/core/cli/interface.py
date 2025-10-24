@@ -3,12 +3,14 @@ CLI interface for provider selection and configuration
 """
 
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
 
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
+from ..persistence.resume_storage_service import ResumeStorageService
 from ..providers import LLMProviders, ProviderConfig
 from ..providers.manager import ProviderManager
 from ..utils import DisplayManager
@@ -93,8 +95,9 @@ class CLIInterface:
 
         menu_options = {
             "1": "📄 Resume Ingestion",
-            "2": "🤖 Manage Providers",
-            "3": "❌ Exit",
+            "2": "📚 View Ingested Resumes",
+            "3": "🤖 Manage Providers",
+            "4": "❌ Exit",
         }
 
         for key, value in menu_options.items():
@@ -561,3 +564,200 @@ class CLIInterface:
                 current_page += 1
             elif choice == "b":
                 break
+
+    def display_ingested_resumes(self):
+        """Display all ingested resumes from the database"""
+        storage_service = ResumeStorageService()
+
+        self.display.print("\n[bold cyan]📚 Ingested Resumes[/bold cyan]")
+        self.display.print("[dim]All resumes stored in the database[/dim]\n")
+
+        # Get all resumes
+        all_resumes = storage_service.get_all_resumes()
+
+        if not all_resumes:
+            self.display.print("[yellow]No resumes found in the database.[/yellow]")
+            self.display.print("[dim]Ingest a resume to see it here.[/dim]")
+            return
+
+        # Create summary table
+        summary_table = Table(title="Resume Database Summary", show_header=True)
+        summary_table.add_column("Status", style="cyan")
+        summary_table.add_column("Count", justify="right", style="green")
+
+        total_count = len(all_resumes)
+        completed_count = storage_service.get_resume_count("completed")
+        pending_count = storage_service.get_resume_count("pending")
+        failed_count = storage_service.get_resume_count("failed")
+
+        summary_table.add_row("Total Resumes", str(total_count))
+        summary_table.add_row("✅ Completed", str(completed_count))
+        summary_table.add_row("⏳ Pending", str(pending_count))
+        summary_table.add_row("❌ Failed", str(failed_count))
+
+        self.display.console.print(summary_table)
+
+        # Create detailed resumes table
+        self.display.print("\n[bold]Resume Details:[/bold]")
+
+        resumes_table = Table(show_header=True, header_style="bold magenta")
+        resumes_table.add_column("ID", style="dim", width=12)
+        resumes_table.add_column("File Name", style="cyan", width=30)
+        resumes_table.add_column("Type", justify="center", width=8)
+        resumes_table.add_column("Size", justify="right", width=10)
+        resumes_table.add_column("Status", justify="center", width=12)
+        resumes_table.add_column("Graph", justify="center", width=8)
+        resumes_table.add_column("Created", width=20)
+
+        for resume in all_resumes:
+            # Format file size
+            size_kb = resume.file_size / 1024
+            size_str = f"{size_kb:.1f} KB"
+
+            # Status emoji
+            status_map = {
+                "completed": "✅ Done",
+                "pending": "⏳ Pending",
+                "failed": "❌ Failed",
+            }
+            status_str = status_map.get(
+                resume.ingestion_status, resume.ingestion_status
+            )
+
+            # Graph ingested
+            graph_str = "✅" if resume.graph_ingested else "❌"
+
+            # Format date
+            try:
+                created_dt = datetime.fromisoformat(resume.created_at)
+                created_str = created_dt.strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                created_str = resume.created_at[:16] if resume.created_at else "N/A"
+
+            resumes_table.add_row(
+                resume.resume_id[:12],
+                resume.file_name[:30],
+                resume.file_type.upper(),
+                size_str,
+                status_str,
+                graph_str,
+                created_str,
+            )
+
+        self.display.console.print(resumes_table)
+
+        # Show options
+        self.display.print("\n[bold]Options:[/bold]")
+        self.display.print("  1. View resume details")
+        self.display.print("  2. Delete a resume")
+        self.display.print("  3. Back to main menu")
+
+        choice = Prompt.ask("\nSelect an option", choices=["1", "2", "3"], default="3")
+
+        if choice == "1":
+            self._view_resume_details(storage_service, all_resumes)
+        elif choice == "2":
+            self._delete_resume(storage_service, all_resumes)
+
+    def _view_resume_details(self, storage_service, all_resumes):
+        """View detailed information about a specific resume"""
+        if not all_resumes:
+            return
+
+        self.display.print("\n[bold]Select a resume to view:[/bold]")
+        for idx, resume in enumerate(all_resumes, 1):
+            self.display.print(f"  {idx}. {resume.file_name} ({resume.resume_id[:12]})")
+
+        choice = Prompt.ask("\nEnter resume number (or 'b' to go back)", default="b")
+
+        if choice.lower() == "b":
+            return
+
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(all_resumes):
+                resume = all_resumes[idx]
+                self._display_single_resume(resume)
+            else:
+                self.display.print("[red]Invalid selection.[/red]")
+        except ValueError:
+            self.display.print("[red]Invalid input.[/red]")
+
+    def _display_single_resume(self, resume):
+        """Display detailed information about a single resume"""
+        self.display.print(
+            f"\n[bold cyan]📄 Resume Details: {resume.file_name}[/bold cyan]"
+        )
+        self.display.print("=" * 60)
+
+        details_table = Table(show_header=False, box=None)
+        details_table.add_column("Field", style="bold cyan", width=20)
+        details_table.add_column("Value", style="white")
+
+        details_table.add_row("Resume ID", resume.resume_id)
+        details_table.add_row("File Name", resume.file_name)
+        details_table.add_row("File Path", resume.file_path)
+        details_table.add_row("File Type", resume.file_type.upper())
+        details_table.add_row("File Size", f"{resume.file_size / 1024:.1f} KB")
+        details_table.add_row("Status", resume.ingestion_status)
+        details_table.add_row(
+            "Graph Ingested", "Yes" if resume.graph_ingested else "No"
+        )
+        details_table.add_row("Created At", resume.created_at)
+        details_table.add_row("Updated At", resume.updated_at)
+        if resume.ingested_at:
+            details_table.add_row("Ingested At", resume.ingested_at)
+        if resume.error_message:
+            details_table.add_row("Error", resume.error_message)
+
+        self.display.console.print(details_table)
+
+        # Show content preview
+        if resume.cleaned_content:
+            self.display.print("\n[bold]Cleaned Content Preview:[/bold]")
+            preview = resume.cleaned_content[:500]
+            if len(resume.cleaned_content) > 500:
+                preview += "..."
+            self.display.print(f"[dim]{preview}[/dim]")
+
+        Prompt.ask("\nPress Enter to continue", default="")
+
+    def _delete_resume(self, storage_service, all_resumes):
+        """Delete a resume from the database"""
+        if not all_resumes:
+            return
+
+        self.display.print("\n[bold red]⚠️  Delete Resume[/bold red]")
+        self.display.print(
+            "[dim]This will only remove the database entry, not the original file.[/dim]\n"
+        )
+
+        for idx, resume in enumerate(all_resumes, 1):
+            self.display.print(f"  {idx}. {resume.file_name} ({resume.resume_id[:12]})")
+
+        choice = Prompt.ask(
+            "\nEnter resume number to delete (or 'b' to go back)", default="b"
+        )
+
+        if choice.lower() == "b":
+            return
+
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(all_resumes):
+                resume = all_resumes[idx]
+
+                if Confirm.ask(
+                    f"\nAre you sure you want to delete '{resume.file_name}'?",
+                    default=False,
+                ):
+                    if storage_service.delete_resume(resume.resume_id):
+                        self.display.print(
+                            "[green]✅ Resume deleted successfully.[/green]"
+                        )
+                    else:
+                        self.display.print("[red]❌ Failed to delete resume.[/red]")
+            else:
+                self.display.print("[red]Invalid selection.[/red]")
+        except ValueError:
+            self.display.print("[red]Invalid input.[/red]")

@@ -60,8 +60,10 @@ class CommandHandler:
                 if choice == "1":
                     await self.handle_resume_ingestion()
                 elif choice == "2":
-                    await self.handle_provider_management()
+                    self.handle_view_resumes()
                 elif choice == "3":
+                    await self.handle_provider_management()
+                elif choice == "4":
                     self.display.print(
                         "\n[bold cyan]Thank you for using ResumeMindAI! 👋[/bold cyan]"
                     )
@@ -217,6 +219,10 @@ class CommandHandler:
                 self.display.print(
                     f"[dim]• ... and {len(graph_data.triplets) - 3} more relationships[/dim]"
                 )
+
+    def handle_view_resumes(self):
+        """Handle viewing ingested resumes"""
+        self.interface.display_ingested_resumes()
 
     async def handle_provider_management(self):
         """Handle provider management workflow"""
