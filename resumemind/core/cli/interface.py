@@ -96,8 +96,9 @@ class CLIInterface:
         menu_options = {
             "1": "📄 Resume Ingestion",
             "2": "📚 View Ingested Resumes",
-            "3": "🤖 Manage Providers",
-            "4": "❌ Exit",
+            "3": "✨ Resume Optimizer",
+            "4": "🤖 Manage Providers",
+            "5": "❌ Exit",
         }
 
         for key, value in menu_options.items():
@@ -761,3 +762,186 @@ class CLIInterface:
                 self.display.print("[red]Invalid selection.[/red]")
         except ValueError:
             self.display.print("[red]Invalid input.[/red]")
+
+    async def select_resume_for_optimization(self) -> Optional[str]:
+        """
+        Display list of completed resumes and let user select one for optimization.
+
+        Returns:
+            Resume ID if selected, None if cancelled
+        """
+        from ..persistence.resume_storage_service import ResumeStorageService
+
+        storage_service = ResumeStorageService()
+        all_resumes = storage_service.get_all_resumes()
+
+        # Convert to dictionaries and filter to only completed resumes
+        completed_resumes = [
+            r.to_dict() for r in all_resumes if r.ingestion_status == "completed"
+        ]
+
+        if not completed_resumes:
+            self.display.print(
+                "\n[yellow]⚠️  No completed resumes found. Please ingest a resume first.[/yellow]"
+            )
+            Prompt.ask("\nPress Enter to continue", default="")
+            return None
+
+        self.display.print(
+            "\n[bold cyan]✨ Resume Optimizer - Select Resume[/bold cyan]"
+        )
+        self.display.print("[dim]Choose a resume to analyze and optimize:[/dim]\n")
+
+        # Display resumes in a table
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("#", style="dim", width=4)
+        table.add_column("File Name", style="cyan")
+        table.add_column("Ingested", style="green")
+        table.add_column("Resume ID", style="dim")
+
+        for idx, resume in enumerate(completed_resumes, 1):
+            ingested_date = resume.get("ingested_at", "N/A")
+            if ingested_date != "N/A":
+                ingested_date = datetime.fromisoformat(ingested_date).strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+
+            table.add_row(
+                str(idx),
+                resume.get("file_name", "Unknown"),
+                ingested_date,
+                resume.get("resume_id", "")[:12] + "...",
+            )
+
+        self.display.console.print(table)
+
+        choice = Prompt.ask("\nEnter resume number (or 'b' to go back)", default="b")
+
+        if choice.lower() == "b":
+            return None
+
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(completed_resumes):
+                return completed_resumes[idx].get("resume_id")
+            else:
+                self.display.print("[red]Invalid selection.[/red]")
+                return None
+        except ValueError:
+            self.display.print("[red]Invalid input.[/red]")
+            return None
+
+    def get_optimization_context(self) -> Optional[str]:
+        """
+        Get additional context from user for optimization.
+
+        Returns:
+            Additional context string or None
+        """
+        self.display.print("\n[bold cyan]📝 Additional Context (Optional)[/bold cyan]")
+        self.display.print(
+            "[dim]Provide any additional context to help with optimization:[/dim]"
+        )
+        self.display.print("[dim]Examples:[/dim]")
+        self.display.print(
+            "[dim]  • Target role: Senior Software Engineer at FAANG[/dim]"
+        )
+        self.display.print("[dim]  • Industry: Machine Learning / AI[/dim]")
+        self.display.print("[dim]  • Focus areas: Leadership, technical depth[/dim]")
+        self.display.print("[dim]  • Career goals: Transition to management[/dim]\n")
+
+        context = Prompt.ask(
+            "Enter additional context (or press Enter to skip)", default=""
+        )
+
+        return context.strip() if context.strip() else None
+
+    def display_optimization_results(self, optimization_output):
+        """
+        Display optimization results in a user-friendly format.
+
+        Args:
+            optimization_output: ResumeOptimizationOutput object
+        """
+        self.display.print("\n" + "=" * 80)
+        self.display.print(
+            "[bold cyan]✨ Resume Optimization Analysis Complete[/bold cyan]"
+        )
+        self.display.print("=" * 80 + "\n")
+
+        # Overall Assessment
+        self.display.print("[bold yellow]📊 Overall Assessment[/bold yellow]")
+        self.display.print(f"{optimization_output.overall_assessment}\n")
+
+        # Strengths
+        if optimization_output.strengths:
+            self.display.print("[bold green]💪 Key Strengths[/bold green]")
+            for idx, strength in enumerate(optimization_output.strengths, 1):
+                self.display.print(f"  {idx}. {strength}")
+            self.display.print()
+
+        # ATS Compatibility
+        score = optimization_output.ats_score
+        score_color = "green" if score >= 80 else "yellow" if score >= 60 else "red"
+        self.display.print(
+            f"[bold {score_color}]🎯 ATS Score: {score}/100[/bold {score_color}]\n"
+        )
+
+        # Optimization Suggestions by Priority
+        if optimization_output.optimization_suggestions:
+            self._display_optimization_suggestions(
+                optimization_output.optimization_suggestions
+            )
+
+        # Missing Information
+        if optimization_output.missing_information:
+            self._display_missing_information(optimization_output.missing_information)
+
+        # Top Actions
+        if optimization_output.top_actions:
+            self.display.print("[bold magenta]🚀 Top Actions[/bold magenta]")
+            for idx, action in enumerate(optimization_output.top_actions, 1):
+                self.display.print(f"  {idx}. {action}")
+            self.display.print()
+
+        self.display.print("=" * 80 + "\n")
+        Prompt.ask("Press Enter to continue", default="")
+
+    def _display_optimization_suggestions(self, suggestions):
+        """Display optimization suggestions grouped by priority"""
+        # Group by priority
+        high_priority = [s for s in suggestions if s.priority == "HIGH"]
+        medium_priority = [s for s in suggestions if s.priority == "MEDIUM"]
+        low_priority = [s for s in suggestions if s.priority == "LOW"]
+
+        if high_priority:
+            self.display.print("[bold red]🔴 HIGH Priority Optimizations[/bold red]")
+            for idx, suggestion in enumerate(high_priority, 1):
+                self._display_single_suggestion(idx, suggestion)
+
+        if medium_priority:
+            self.display.print(
+                "[bold yellow]🟡 MEDIUM Priority Optimizations[/bold yellow]"
+            )
+            for idx, suggestion in enumerate(medium_priority, 1):
+                self._display_single_suggestion(idx, suggestion)
+
+        if low_priority:
+            self.display.print("[bold blue]🔵 LOW Priority Optimizations[/bold blue]")
+            for idx, suggestion in enumerate(low_priority, 1):
+                self._display_single_suggestion(idx, suggestion)
+
+    def _display_single_suggestion(self, idx, suggestion):
+        """Display a single optimization suggestion"""
+        self.display.print(
+            f"\n  {idx}. [{suggestion.category}] {suggestion.suggestion}"
+        )
+        self.display.print(f"     [dim]{suggestion.rationale}[/dim]\n")
+
+    def _display_missing_information(self, missing_info):
+        """Display missing information"""
+        self.display.print("[bold orange]❓ Missing Information[/bold orange]\n")
+
+        for idx, info in enumerate(missing_info, 1):
+            self.display.print(f"  {idx}. [{info.category}] {info.what_missing}")
+            self.display.print(f"     [dim]{info.why_important}[/dim]\n")

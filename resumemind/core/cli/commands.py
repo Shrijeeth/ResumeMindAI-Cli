@@ -62,8 +62,10 @@ class CommandHandler:
                 elif choice == "2":
                     self.handle_view_resumes()
                 elif choice == "3":
-                    await self.handle_provider_management()
+                    await self.handle_resume_optimization()
                 elif choice == "4":
+                    await self.handle_provider_management()
+                elif choice == "5":
                     self.display.print(
                         "\n[bold cyan]Thank you for using ResumeMindAI! 👋[/bold cyan]"
                     )
@@ -234,3 +236,49 @@ class CommandHandler:
             self.display.print(f"\n[green]✅ Provider updated: {config.name}[/green]")
         else:
             self.display.print("\n[yellow]Provider management cancelled.[/yellow]")
+
+    async def handle_resume_optimization(self):
+        """Handle resume optimization workflow"""
+        from ..services.resume_optimization_service import ResumeOptimizationService
+
+        # Select resume
+        resume_id = await self.interface.select_resume_for_optimization()
+        if not resume_id:
+            return
+
+        # Get additional context
+        additional_context = self.interface.get_optimization_context()
+
+        # Show progress
+        self.display.print("\n[bold yellow]🔄 Analyzing Resume...[/bold yellow]")
+        self.display.print("[dim]This may take a moment...[/dim]\n")
+
+        try:
+            # Create optimization service
+            optimization_service = ResumeOptimizationService(
+                model_id=self.selected_provider.model,
+                api_key=self.selected_provider.api_key_env,
+                base_url=self.selected_provider.base_url,
+                additional_params=self.selected_provider.additional_params or {},
+            )
+
+            # Run optimization
+            optimization_result = await optimization_service.optimize_resume(
+                resume_id=resume_id,
+                additional_context=additional_context,
+            )
+
+            if optimization_result:
+                # Display results
+                self.interface.display_optimization_results(optimization_result)
+                self.display.print("[green]✅ Resume optimization complete![/green]")
+            else:
+                self.display.print(
+                    "[red]❌ Failed to optimize resume. Please try again.[/red]"
+                )
+
+        except Exception as e:
+            self.display.print(f"\n[red]Error during optimization: {str(e)}[/red]")
+            self.display.print(
+                "[dim]Please check your provider configuration and try again.[/dim]"
+            )
