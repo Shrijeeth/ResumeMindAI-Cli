@@ -626,3 +626,225 @@ class GraphDatabaseService:
             return 0.0
 
         return dot_product / (magnitude1 * magnitude2)
+
+    async def search_resume_by_query(
+        self,
+        resume_id: str,
+        query: str,
+        limit: int = 10,
+        embedding_service=None,
+    ) -> List[Dict]:
+        """
+        Search a specific resume using natural language query.
+
+        Args:
+            resume_id: ID of the resume to search
+            query: Natural language search query
+            limit: Maximum number of results to return
+            embedding_service: Optional EmbeddingService instance
+
+        Returns:
+            List of relevant triplets with descriptions
+        """
+        if not self.graph:
+            return []
+
+        try:
+            # Generate embedding for the query
+            if embedding_service:
+                query_embedding = await embedding_service.generate_embedding(query)
+            else:
+                # Fallback to default (should not happen in normal flow)
+                from ..services.embedding_service import EmbeddingService
+
+                default_embedder = EmbeddingService()
+                query_embedding = await default_embedder.generate_embedding(query)
+
+            if not query_embedding:
+                return []
+
+            # Query for triplets with embeddings for this resume
+            cypher_query = """
+            MATCH (s)-[r]->(o)
+            WHERE s.resume_id = $resume_id
+            AND (s.embedding IS NOT NULL OR r.embedding IS NOT NULL OR o.embedding IS NOT NULL)
+            RETURN s.name as subject,
+                   type(r) as predicate,
+                   o.name as object,
+                   s.description as subject_description,
+                   o.description as object_description,
+                   r.description as relationship_description,
+                   s.embedding as subject_embedding,
+                   o.embedding as object_embedding,
+                   r.embedding as relationship_embedding
+            """
+
+            result = await self.graph.query(cypher_query, {"resume_id": resume_id})
+
+            # Calculate similarity scores and rank results
+            scored_results = []
+            for record in result.result_set:
+                subject = record[0]
+                predicate = record[1]
+                obj = record[2]
+                subject_desc = record[3] or ""
+                object_desc = record[4] or ""
+                rel_desc = record[5] or ""
+                subject_emb = (
+                    json.loads(record[6]) if record[6] and record[6] != "null" else []
+                )
+                object_emb = (
+                    json.loads(record[7]) if record[7] and record[7] != "null" else []
+                )
+                rel_emb = (
+                    json.loads(record[8]) if record[8] and record[8] != "null" else []
+                )
+
+                # Calculate similarity scores
+                subject_sim = (
+                    self._cosine_similarity(query_embedding, subject_emb)
+                    if subject_emb
+                    else 0
+                )
+                object_sim = (
+                    self._cosine_similarity(query_embedding, object_emb)
+                    if object_emb
+                    else 0
+                )
+                rel_sim = (
+                    self._cosine_similarity(query_embedding, rel_emb) if rel_emb else 0
+                )
+
+                # Use max similarity as the score
+                max_similarity = max(subject_sim, object_sim, rel_sim)
+
+                scored_results.append(
+                    {
+                        "subject": subject,
+                        "predicate": predicate,
+                        "object": obj,
+                        "subject_description": subject_desc,
+                        "object_description": object_desc,
+                        "relationship_description": rel_desc,
+                        "similarity_score": max_similarity,
+                    }
+                )
+
+            # Sort by similarity score and return top results
+            scored_results.sort(key=lambda x: x["similarity_score"], reverse=True)
+            return scored_results[:limit]
+
+        except Exception as e:
+            print(f"Error during semantic search: {e}")
+            return []
+
+    async def search_all_resumes_by_query(
+        self,
+        query: str,
+        limit: int = 15,
+        embedding_service=None,
+    ) -> List[Dict]:
+        """
+        Search across all resumes using natural language query.
+
+        Args:
+            query: Natural language search query
+            limit: Maximum number of results to return
+            embedding_service: Optional EmbeddingService instance
+
+        Returns:
+            List of relevant triplets with descriptions
+        """
+        if not self.graph:
+            return []
+
+        try:
+            # Generate embedding for the query
+            if embedding_service:
+                query_embedding = await embedding_service.generate_embedding(query)
+            else:
+                # Fallback to default (should not happen in normal flow)
+                from ..services.embedding_service import EmbeddingService
+
+                default_embedder = EmbeddingService()
+                query_embedding = await default_embedder.generate_embedding(query)
+
+            if not query_embedding:
+                return []
+
+            # Query for all triplets with embeddings
+            cypher_query = """
+            MATCH (s)-[r]->(o)
+            WHERE (s.embedding IS NOT NULL OR r.embedding IS NOT NULL OR o.embedding IS NOT NULL)
+            RETURN s.name as subject,
+                   type(r) as predicate,
+                   o.name as object,
+                   s.description as subject_description,
+                   o.description as object_description,
+                   r.description as relationship_description,
+                   s.embedding as subject_embedding,
+                   o.embedding as object_embedding,
+                   r.embedding as relationship_embedding,
+                   s.resume_id as resume_id
+            """
+
+            result = await self.graph.query(cypher_query)
+
+            # Calculate similarity scores and rank results
+            scored_results = []
+            for record in result.result_set:
+                subject = record[0]
+                predicate = record[1]
+                obj = record[2]
+                subject_desc = record[3] or ""
+                object_desc = record[4] or ""
+                rel_desc = record[5] or ""
+                subject_emb = (
+                    json.loads(record[6]) if record[6] and record[6] != "null" else []
+                )
+                object_emb = (
+                    json.loads(record[7]) if record[7] and record[7] != "null" else []
+                )
+                rel_emb = (
+                    json.loads(record[8]) if record[8] and record[8] != "null" else []
+                )
+                resume_id = record[9] if record[9] else "unknown"
+
+                # Calculate similarity scores
+                subject_sim = (
+                    self._cosine_similarity(query_embedding, subject_emb)
+                    if subject_emb
+                    else 0
+                )
+                object_sim = (
+                    self._cosine_similarity(query_embedding, object_emb)
+                    if object_emb
+                    else 0
+                )
+                rel_sim = (
+                    self._cosine_similarity(query_embedding, rel_emb) if rel_emb else 0
+                )
+
+                # Use max similarity as the score
+                max_similarity = max(subject_sim, object_sim, rel_sim)
+
+                scored_results.append(
+                    {
+                        "subject": subject,
+                        "predicate": predicate,
+                        "object": obj,
+                        "subject_description": subject_desc,
+                        "object_description": object_desc,
+                        "relationship_description": rel_desc,
+                        "similarity_score": max_similarity,
+                        "resume_id": resume_id,
+                    }
+                )
+
+            # Sort by similarity score and return top results
+            scored_results.sort(key=lambda x: x["similarity_score"], reverse=True)
+            return scored_results[:limit]
+
+        except Exception as e:
+            print(f"Error during semantic search: {e}")
+            return []
