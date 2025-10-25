@@ -97,8 +97,9 @@ class CLIInterface:
             "1": "📄 Resume Ingestion",
             "2": "📚 View Ingested Resumes",
             "3": "✨ Resume Optimizer",
-            "4": "🤖 Manage Providers",
-            "5": "❌ Exit",
+            "4": "💬 Ask Questions (Q&A)",
+            "5": "🤖 Manage Providers",
+            "6": "❌ Exit",
         }
 
         for key, value in menu_options.items():
@@ -945,3 +946,117 @@ class CLIInterface:
         for idx, info in enumerate(missing_info, 1):
             self.display.print(f"  {idx}. [{info.category}] {info.what_missing}")
             self.display.print(f"     [dim]{info.why_important}[/dim]\n")
+
+    async def ask_resume_question(self) -> Optional[Tuple[str, str]]:
+        """
+        Interactive Q&A for a specific resume.
+
+        Returns:
+            Tuple of (resume_id, question) or None if cancelled
+        """
+        # Select resume
+        resume_id = await self.select_resume_for_optimization()
+        if not resume_id:
+            return None
+
+        self.display.print(
+            "\n[bold cyan]💬 Ask a Question About This Resume[/bold cyan]"
+        )
+        self.display.print("[dim]Examples:[/dim]")
+        self.display.print("[dim]  • What are the key technical skills?[/dim]")
+        self.display.print("[dim]  • What companies has this person worked at?[/dim]")
+        self.display.print("[dim]  • Summarize the work experience[/dim]")
+        self.display.print("[dim]  • What projects has this person worked on?[/dim]")
+        self.display.print("[dim]  • What is the educational background?[/dim]\n")
+
+        question = Prompt.ask("Enter your question (or 'b' to go back)", default="b")
+
+        if question.lower() == "b" or not question.strip():
+            return None
+
+        return (resume_id, question.strip())
+
+    def ask_general_question(self) -> Optional[str]:
+        """
+        Ask a question across all resumes.
+
+        Returns:
+            Question string or None if cancelled
+        """
+        self.display.print(
+            "\n[bold cyan]💬 Ask a Question Across All Resumes[/bold cyan]"
+        )
+        self.display.print("[dim]Examples:[/dim]")
+        self.display.print(
+            "[dim]  • Who has experience with Python and machine learning?[/dim]"
+        )
+        self.display.print("[dim]  • Find candidates with cloud computing skills[/dim]")
+        self.display.print("[dim]  • Who has worked at FAANG companies?[/dim]")
+        self.display.print("[dim]  • List all candidates with PhD degrees[/dim]\n")
+
+        question = Prompt.ask("Enter your question (or 'b' to go back)", default="b")
+
+        if question.lower() == "b" or not question.strip():
+            return None
+
+        return question.strip()
+
+    def display_qa_answer(
+        self, question: str, answer: str, show_separator: bool = True
+    ):
+        """Display Q&A answer in a formatted way"""
+        if show_separator:
+            self.display.print("\n" + "=" * 80)
+            self.display.print("[bold cyan]💬 Question & Answer[/bold cyan]")
+            self.display.print("=" * 80 + "\n")
+
+        self.display.print("[bold yellow]❓ Question:[/bold yellow]")
+        self.display.print(f"{question}\n")
+
+        self.display.print("[bold green]✅ Answer:[/bold green]")
+        self.display.print(f"{answer}\n")
+
+        if show_separator:
+            self.display.print("=" * 80 + "\n")
+
+    def ask_chat_question(self, chat_number: int = 1) -> Optional[str]:
+        """
+        Ask a question in chat mode.
+
+        Args:
+            chat_number: The current chat message number
+
+        Returns:
+            Question string or None if user wants to exit
+        """
+        self.display.print(f"\n[bold cyan]💬 Message #{chat_number}[/bold cyan]")
+        self.display.print(
+            "[dim]Type your question or 'exit' to end chat, 'clear' to clear history[/dim]"
+        )
+
+        question = Prompt.ask("You", default="")
+
+        if not question.strip():
+            return None
+
+        return question.strip()
+
+    def show_qa_menu(self) -> str:
+        """Display Q&A submenu"""
+        self.display.print("\n[bold cyan]💬 Resume Q&A[/bold cyan]")
+        self.display.print("[dim]Choose how you'd like to ask questions:[/dim]\n")
+
+        menu_options = {
+            "1": "💬 Ask about a specific resume",
+            "2": "🔍 Search across all resumes",
+            "3": "⬅️  Back to main menu",
+        }
+
+        for key, value in menu_options.items():
+            self.display.print(f"  {key}. {value}")
+
+        choice = Prompt.ask(
+            "\nSelect an option", choices=list(menu_options.keys()), default="1"
+        )
+
+        return choice

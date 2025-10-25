@@ -64,8 +64,10 @@ class CommandHandler:
                 elif choice == "3":
                     await self.handle_resume_optimization()
                 elif choice == "4":
-                    await self.handle_provider_management()
+                    await self.handle_resume_qa()
                 elif choice == "5":
+                    await self.handle_provider_management()
+                elif choice == "6":
                     self.display.print(
                         "\n[bold cyan]Thank you for using ResumeMindAI! 👋[/bold cyan]"
                     )
@@ -279,6 +281,154 @@ class CommandHandler:
 
         except Exception as e:
             self.display.print(f"\n[red]Error during optimization: {str(e)}[/red]")
+            self.display.print(
+                "[dim]Please check your provider configuration and try again.[/dim]"
+            )
+
+    async def handle_resume_qa(self):
+        """Handle resume Q&A workflow"""
+        while True:
+            choice = self.interface.show_qa_menu()
+
+            if choice == "1":
+                await self._handle_specific_resume_qa()
+            elif choice == "2":
+                await self._handle_general_qa()
+            elif choice == "3":
+                return
+
+    async def _handle_specific_resume_qa(self):
+        """Handle Q&A chat for a specific resume"""
+        try:
+            # Select resume first
+            resume_id = await self.interface.select_resume_for_optimization()
+            if not resume_id:
+                return
+
+            # Create embedding service and QA service
+            from ..services.embedding_service import (
+                create_embedding_service_from_provider,
+            )
+            from ..services.resume_qa_service import ResumeQAService
+
+            embedding_service = create_embedding_service_from_provider(
+                self.selected_provider
+            )
+
+            qa_service = ResumeQAService(
+                model_id=self.selected_provider.model,
+                api_key=self.selected_provider.api_key_env,
+                base_url=self.selected_provider.base_url,
+                additional_params=self.selected_provider.additional_params or {},
+                embedding_service=embedding_service,
+            )
+
+            # Start chat session
+            self.display.print("\n[bold cyan]💬 Chat Mode - Resume Q&A[/bold cyan]")
+            self.display.print(
+                "[dim]Ask questions about this resume. Type 'exit' to end, 'clear' to clear history.[/dim]"
+            )
+
+            chat_number = 1
+            while True:
+                # Get question
+                question = self.interface.ask_chat_question(chat_number)
+
+                if not question:
+                    continue
+
+                if question.lower() == "exit":
+                    self.display.print("\n[green]👋 Ending chat session[/green]")
+                    break
+
+                if question.lower() == "clear":
+                    qa_service.clear_chat_history()
+                    self.display.print("\n[green]✅ Chat history cleared[/green]")
+                    chat_number = 1
+                    continue
+
+                # Get answer
+                self.display.print("\n[dim]🔄 Thinking...[/dim]")
+                answer = await qa_service.ask_question(
+                    resume_id=resume_id,
+                    question=question,
+                )
+
+                if answer:
+                    self.display.print("\n[bold green]AI:[/bold green]")
+                    self.display.print(answer)
+                else:
+                    self.display.print("[red]❌ Failed to get answer.[/red]")
+
+                chat_number += 1
+
+        except Exception as e:
+            self.display.print(f"\n[red]Error during Q&A: {str(e)}[/red]")
+            self.display.print(
+                "[dim]Please check your provider configuration and try again.[/dim]"
+            )
+
+    async def _handle_general_qa(self):
+        """Handle Q&A chat across all resumes"""
+        try:
+            # Create embedding service and QA service
+            from ..services.embedding_service import (
+                create_embedding_service_from_provider,
+            )
+            from ..services.resume_qa_service import ResumeQAService
+
+            embedding_service = create_embedding_service_from_provider(
+                self.selected_provider
+            )
+
+            qa_service = ResumeQAService(
+                model_id=self.selected_provider.model,
+                api_key=self.selected_provider.api_key_env,
+                base_url=self.selected_provider.base_url,
+                additional_params=self.selected_provider.additional_params or {},
+                embedding_service=embedding_service,
+            )
+
+            # Start chat session
+            self.display.print(
+                "\n[bold cyan]💬 Chat Mode - Search All Resumes[/bold cyan]"
+            )
+            self.display.print(
+                "[dim]Ask questions across all resumes. Type 'exit' to end, 'clear' to clear history.[/dim]"
+            )
+
+            chat_number = 1
+            while True:
+                # Get question
+                question = self.interface.ask_chat_question(chat_number)
+
+                if not question:
+                    continue
+
+                if question.lower() == "exit":
+                    self.display.print("\n[green]👋 Ending chat session[/green]")
+                    break
+
+                if question.lower() == "clear":
+                    qa_service.clear_chat_history()
+                    self.display.print("\n[green]✅ Chat history cleared[/green]")
+                    chat_number = 1
+                    continue
+
+                # Get answer
+                self.display.print("\n[dim]🔄 Searching...[/dim]")
+                answer = await qa_service.ask_question_all_resumes(question=question)
+
+                if answer:
+                    self.display.print("\n[bold green]AI:[/bold green]")
+                    self.display.print(answer)
+                else:
+                    self.display.print("[red]❌ Failed to get answer.[/red]")
+
+                chat_number += 1
+
+        except Exception as e:
+            self.display.print(f"\n[red]Error during Q&A: {str(e)}[/red]")
             self.display.print(
                 "[dim]Please check your provider configuration and try again.[/dim]"
             )
