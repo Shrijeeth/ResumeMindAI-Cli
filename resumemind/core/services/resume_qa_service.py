@@ -2,7 +2,10 @@
 Resume Q&A Service - Answer questions about resumes using GraphRAG
 """
 
+from textwrap import dedent
 from typing import Any, Dict, List, Optional
+
+from agno.agent import Agent
 
 from ..services.embedding_service import EmbeddingService
 from ..services.graph_database_service import GraphDatabaseService
@@ -161,10 +164,6 @@ class ResumeQAService:
 
     async def _generate_answer(self, question: str, context: str) -> str:
         """Generate an answer using the LLM based on context"""
-        from textwrap import dedent
-
-        from agno.agent import Agent
-
         qa_agent = Agent(
             model=self.model,
             name="Resume Q&A Agent",
