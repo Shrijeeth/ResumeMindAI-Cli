@@ -254,6 +254,7 @@ class ResumeGraphExtractionWorkflow:
             """),
             output_schema=ResumeGraphExtractionOutput,
             use_json_mode=True,
+            structured_outputs=True,
             retries=3,
         )
 

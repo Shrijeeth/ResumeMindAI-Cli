@@ -99,6 +99,7 @@ class ResumeCleaningWorkflow:
             """),
             output_schema=ResumeCleaningWorkflowOutput,
             use_json_mode=True,
+            structured_outputs=True,
             retries=3,
         )
 
